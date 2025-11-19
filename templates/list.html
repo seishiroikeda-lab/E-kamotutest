@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>搬入一覧 / 集計</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="top-nav no-print">
+    <a href="{{ url_for('index') }}">メニュー</a>
+    <span>›</span>
+    <span>搬入一覧 / 集計</span>
+  </div>
+
+  <div class="app">
+    <div class="card">
+      <div class="app-header no-print">
+        <div>
+          <div class="app-title">
+            搬入一覧 / 集計
+            <span class="app-title-badge">日付・荷主・仕向け地で絞り込み</span>
+          </div>
+          <div class="app-subtitle">
+            搬入番号ごとに、明細の合計個数・合計 M3・合計重量を一覧で確認できます。<br/>
+            日付・荷主・仕向け地で絞り込んで、請求や確認作業に使えます。
+          </div>
+        </div>
+      </div>
+
+      <!-- 条件入力（印刷時は非表示） -->
+      <div class="section no-print">
+        <div class="section-title">検索条件</div>
+        <div class="field-grid">
+          <div class="field">
+            <label for="dateFrom">搬入日（開始）</label>
+            <input type="date" id="dateFrom" />
+          </div>
+          <div class="field">
+            <label for="dateTo">搬入日（終了）</label>
+            <input type="date" id="dateTo" />
+          </div>
+        </div>
+
+        <div class="field-grid" style="margin-top:6px;">
+          <div class="field">
+            <label for="shipper">荷主（部分一致）</label>
+            <input type="text" id="shipper" placeholder="例：山田商事 / ABC TRADING" />
+          </div>
+          <div class="field">
+            <label for="dest">仕向け地（部分一致）</label>
+            <input type="text" id="dest" placeholder="例：SINGAPORE / HAMBURG 等" />
+          </div>
+        </div>
+
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn-primary" id="searchBtn">検索する</button>
+            <button class="btn-secondary" id="clearBtn">条件クリア</button>
+          </div>
+
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-left:auto;">
+            <button class="btn-secondary btn-small" id="btnToday">今日</button>
+            <button class="btn-secondary btn-small" id="btnThisWeek">今週</button>
+            <button class="btn-secondary btn-small" id="btnThisMonth">今月</button>
+          </div>
+        </div>
+
+        <div class="search-hint">
+          ・何も条件を入れずに「検索する」を押すと、<strong>最新から最大500件</strong> を表示します。<br/>
+          ・荷主や仕向け地は一部の文字でも検索できます。（例：<code>TOKYO</code> / <code>LTD</code> など）
+        </div>
+      </div>
+
+      <!-- 結果表示 -->
+      <div class="section">
+        <div class="section-title">
+          検索結果
+        </div>
+
+        <!-- 一覧全体のサマリー + 印刷ボタン -->
+        <div class="footer-bar" style="margin-top:0; margin-bottom:8px;">
+          <div class="footer-left">
+            <div class="totals">
+              <div>
+                <div class="totals-label">件数</div>
+                <div class="totals-value">
+                  <span id="summaryCount">0</span><span> 件</span>
+                </div>
+              </div>
+              <div>
+                <div class="totals-label">総個数</div>
+                <div class="totals-value">
+                  <span id="summaryQty">0</span><span> 個</span>
+                </div>
+              </div>
+              <div>
+                <div class="totals-label">総 M3</div>
+                <div class="totals-value">
+                  <span id="summaryM3">0.000</span><span> m³</span>
+                </div>
+              </div>
+              <div>
+                <div class="totals-label">総重量</div>
+                <div class="totals-value">
+                  <span id="summaryWeight">0.0</span><span> kg</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="no-print" style="display:flex; gap:8px; align-items:center;">
+            <span id="resultLabel" style="font-size:11px; color:var(--text-sub);"></span>
+            <button class="btn-secondary btn-small" id="printBtn">
+              📄 一覧を印刷
+            </button>
+          </div>
+        </div>
+
+        <div class="search-result-panel">
+          <div class="search-result-header no-print">
+            ※ 印刷時は、この下の一覧とサマリーのみが紙に出力されます。
+          </div>
+
+          <table class="search-table">
+            <thead>
+              <tr>
+                <th>搬入番号</th>
+                <th>搬入日</th>
+                <th>荷主</th>
+                <th>仕向け地</th>
+                <th>品名</th>
+                <th>明細件数</th>
+                <th>合計個数</th>
+                <th>合計 M3</th>
+                <th>合計重量</th>
+                <th class="no-print">操作</th>
+              </tr>
+            </thead>
+            <tbody id="summaryBody">
+              <tr>
+                <td colspan="10" class="td-center">
+                  条件を指定して「検索する」を押してください。
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function todayString() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function getWeekStartEnd() {
+      const d = new Date();
+      const day = d.getDay() || 7; // 1=Mon ... 7=Sun
+      const start = new Date(d);
+      start.setDate(d.getDate() - (day - 1)); // Monday
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      const pad = (n) => String(n).padStart(2, "0");
+      const f = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+      const t = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
+      return { from: f, to: t };
+    }
+
+    function getMonthStartEnd() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = d.getMonth();
+      const pad = (n) => String(n).padStart(2, "0");
+      const start = `${yyyy}-${pad(mm + 1)}-01`;
+      const lastDay = new Date(yyyy, mm + 1, 0).getDate();
+      const end = `${yyyy}-${pad(mm + 1)}-${pad(lastDay)}`;
+      return { from: start, to: end };
+    }
+
+    async function apiSummary(params) {
+      const search = new URLSearchParams(params);
+      const url = `/api/summary?${search.toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("集計APIエラー");
+      return await res.json();
+    }
+
+    function renderSummary(data) {
+      const tbody = document.getElementById("summaryBody");
+      const label = document.getElementById("resultLabel");
+
+      const summaryCountEl = document.getElementById("summaryCount");
+      const summaryQtyEl = document.getElementById("summaryQty");
+      const summaryM3El = document.getElementById("summaryM3");
+      const summaryWeightEl = document.getElementById("summaryWeight");
+
+      const results = data.results || [];
+
+      // 合計値
+      let totalCount = results.length;
+      let totalQty = 0;
+      let totalM3 = 0;
+      let totalWeight = 0;
+
+      results.forEach((r) => {
+        totalQty += Number(r.totalQty || 0);
+        totalM3 += Number(r.totalM3 || 0);
+        totalWeight += Number(r.totalWeight || 0);
+      });
+
+      summaryCountEl.textContent = totalCount;
+      summaryQtyEl.textContent = totalQty;
+      summaryM3El.textContent = totalM3.toFixed(3);
+      summaryWeightEl.textContent = totalWeight.toFixed(1);
+
+      label.textContent = `検索結果 ${results.length}件`;
+
+      if (!results.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="10" class="td-center">該当するデータがありませんでした。</td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = "";
+
+      results.forEach((r) => {
+        const tr = document.createElement("tr");
+
+        const m3 = Number(r.totalM3 || 0);
+        const w = Number(r.totalWeight || 0);
+
+        tr.innerHTML = `
+          <td class="td-center">${r.hainyuId || ""}</td>
+          <td class="td-center">${r.date || ""}</td>
+          <td class="text-left">${r.shipper || ""}</td>
+          <td class="text-left">${r.dest || ""}</td>
+          <td class="text-left">${r.itemName || ""}</td>
+          <td class="td-right">${r.itemCount ?? ""}</td>
+          <td class="td-right">${r.totalQty ?? ""}</td>
+          <td class="td-right">${m3.toFixed(3)}</td>
+          <td class="td-right">${w.toFixed(1)}</td>
+          <td class="td-center no-print">
+            <button class="btn-secondary btn-small" data-action="edit">編集</button>
+            <button class="btn-primary btn-small" data-action="report">搬入票</button>
+          </td>
+        `;
+
+        tr.querySelectorAll("button").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const action = btn.getAttribute("data-action");
+            if (action === "edit") {
+              window.location.href = `/edit?id=${encodeURIComponent(r.hainyuId)}`;
+            } else if (action === "report") {
+              window.location.href = `/report?id=${encodeURIComponent(r.hainyuId)}`;
+            }
+          });
+        });
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const dateFromEl = document.getElementById("dateFrom");
+      const dateToEl = document.getElementById("dateTo");
+      const shipperEl = document.getElementById("shipper");
+      const destEl = document.getElementById("dest");
+
+      const searchBtn = document.getElementById("searchBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const btnToday = document.getElementById("btnToday");
+      const btnThisWeek = document.getElementById("btnThisWeek");
+      const btnThisMonth = document.getElementById("btnThisMonth");
+      const printBtn = document.getElementById("printBtn");
+
+      // クイックボタン
+      btnToday.addEventListener("click", () => {
+        const t = todayString();
+        dateFromEl.value = t;
+        dateToEl.value = t;
+      });
+
+      btnThisWeek.addEventListener("click", () => {
+        const { from, to } = getWeekStartEnd();
+        dateFromEl.value = from;
+        dateToEl.value = to;
+      });
+
+      btnThisMonth.addEventListener("click", () => {
+        const { from, to } = getMonthStartEnd();
+        dateFromEl.value = from;
+        dateToEl.value = to;
+      });
+
+      async function performSearch() {
+        const params = {};
+        if (dateFromEl.value) params.dateFrom = dateFromEl.value;
+        if (dateToEl.value) params.dateTo = dateToEl.value;
+        if (shipperEl.value.trim()) params.shipper = shipperEl.value.trim();
+        if (destEl.value.trim()) params.dest = destEl.value.trim();
+
+        try {
+          const data = await apiSummary(params);
+          renderSummary(data);
+        } catch (e) {
+          console.error(e);
+          alert("一覧の取得中にエラーが発生しました。");
+        }
+      }
+
+      searchBtn.addEventListener("click", performSearch);
+
+      clearBtn.addEventListener("click", () => {
+        dateFromEl.value = "";
+        dateToEl.value = "";
+        shipperEl.value = "";
+        destEl.value = "";
+        performSearch();
+      });
+
+      // 印刷ボタン
+      printBtn.addEventListener("click", () => {
+        window.print();
+      });
+
+      // 初回は条件なしで最新500件を表示
+      performSearch();
+    });
+  </script>
+</body>
+</html>

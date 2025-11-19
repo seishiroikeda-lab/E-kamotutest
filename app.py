@@ -89,6 +89,12 @@ def search_page():
     return render_template("search.html")
 
 
+# ★ 新しい一覧 / 集計ページ
+@app.route("/list")
+def list_page():
+    return render_template("list.html")
+
+
 # ===== API: 搬入データ 取得 =====
 
 @app.route("/api/hainyu/<hainyu_id>", methods=["GET"])
@@ -242,9 +248,7 @@ def api_save_hainyu(hainyu_id):
     return jsonify({"status": "ok"})
 
 
-# ===== API: 検索 =====
-# search.html 側は { "results": [...] } という形式を期待しているので、
-# 必ず {"results": result} の形で返す。
+# ===== API: 検索（キーワード検索用・既存） =====
 
 @app.route("/api/search", methods=["GET"])
 def api_search():
@@ -277,7 +281,6 @@ def api_search():
         """
         params.extend([like, like, like, like, like])
 
-    # q が空でも最近順で最大100件返す
     base_sql += " ORDER BY date DESC, hainyu_id ASC LIMIT 100"
 
     cur.execute(base_sql, params)
@@ -293,12 +296,98 @@ def api_search():
                 "shipper": r["shipper"],
                 "dest": r["dest"],
                 "itemName": r["item_name"],
-                # lastUpdated カラムはないので、とりあえず date を流用
-                "lastUpdated": r["date"],
+                "lastUpdated": r["date"],  # 今は date を流用
             }
         )
 
     return jsonify({"results": result})
+
+
+# ===== API: 一覧 / 集計用 =====
+# 日付・荷主・仕向け地で絞り込み、合計個数・合計M3・合計重量を返す
+
+@app.route("/api/summary", methods=["GET"])
+def api_summary():
+    date_from = (request.args.get("dateFrom") or "").strip()
+    date_to = (request.args.get("dateTo") or "").strip()
+    shipper = (request.args.get("shipper") or "").strip()
+    dest = (request.args.get("dest") or "").strip()
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    base_sql = """
+        SELECT
+            h.hainyu_id,
+            h.date,
+            h.shipper,
+            h.dest,
+            h.item_name,
+            COUNT(i.id)                          AS item_count,
+            COALESCE(SUM(i.qty), 0)              AS total_qty,
+            COALESCE(SUM(i.m3), 0)               AS total_m3,
+            COALESCE(SUM(i.qty * i.weight_kg),0) AS total_weight
+        FROM hainyu_headers h
+        LEFT JOIN hainyu_items i
+          ON i.hainyu_id = h.hainyu_id
+    """
+
+    conditions = []
+    params = []
+
+    if date_from:
+        conditions.append("h.date >= ?")
+        params.append(date_from)
+
+    if date_to:
+        conditions.append("h.date <= ?")
+        params.append(date_to)
+
+    if shipper:
+        conditions.append("h.shipper LIKE ?")
+        params.append(f"%{shipper}%")
+
+    if dest:
+        conditions.append("h.dest LIKE ?")
+        params.append(f"%{dest}%")
+
+    if conditions:
+        base_sql += " WHERE " + " AND ".join(conditions)
+
+    base_sql += """
+        GROUP BY
+            h.hainyu_id,
+            h.date,
+            h.shipper,
+            h.dest,
+            h.item_name
+        ORDER BY
+            h.date DESC,
+            h.hainyu_id ASC
+        LIMIT 500
+    """
+
+    cur.execute(base_sql, params)
+    rows = cur.fetchall()
+    conn.close()
+
+    results = []
+    for r in rows:
+        results.append(
+            {
+                "hainyuId": r["hainyu_id"],
+                "date": r["date"],
+                "shipper": r["shipper"],
+                "dest": r["dest"],
+                "itemName": r["item_name"],
+                "itemCount": r["item_count"],
+                "totalQty": r["total_qty"],
+                "totalM3": float(r["total_m3"] or 0),
+                "totalWeight": float(r["total_weight"] or 0),
+            }
+        )
+
+    return jsonify({"results": results})
 
 
 if __name__ == "__main__":
