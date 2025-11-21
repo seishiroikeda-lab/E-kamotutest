@@ -8,7 +8,7 @@
   <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
 
   <style>
-    /* ===== 現場UX特化スタイル ===== */
+    /* ===== 現場UX特化スタイル（スマホ専用ダークテーマ） ===== */
     :root {
       --bg-body: #0f172a;
       --bg-card: #1e293b;
@@ -28,7 +28,11 @@
       -webkit-font-smoothing: antialiased;
     }
     
-    .mobile-app { max-width: 600px; margin: 0 auto; padding: 0 12px; }
+    .mobile-app {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 12px;
+    }
 
     /* セクション */
     .section {
@@ -41,18 +45,28 @@
     }
     
     .section-header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 12px; padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
       border-bottom: 2px solid var(--border);
     }
     .section-title {
-      font-size: 13px; font-weight: 700; color: var(--text-sub);
-      text-transform: uppercase; letter-spacing: 0.05em;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     /* 入力フィールド共通 */
     .input-label {
-      font-size: 11px; color: var(--text-sub); margin-bottom: 4px; display: block; font-weight: bold;
+      font-size: 11px;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+      display: block;
+      font-weight: bold;
     }
     .mobile-input {
       width: 100%;
@@ -79,19 +93,30 @@
 
     /* 荷姿チップ（横スクロール） */
     .chip-scroll {
-      display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 0 8px;
       -webkit-overflow-scrolling: touch; /* iOS慣性スクロール */
       scrollbar-width: none; /* Firefox */
     }
     .chip-scroll::-webkit-scrollbar { display: none; }
     .chip {
       flex: 0 0 auto;
-      background: #334155; color: #e2e8f0; border: 1px solid #475569;
-      padding: 8px 16px; border-radius: 999px; font-size: 14px; font-weight: 500;
+      background: #334155;
+      color: #e2e8f0;
+      border: 1px solid #475569;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 500;
       transition: transform 0.1s, background 0.2s;
     }
     .chip:active {
-      transform: scale(0.95); background: var(--accent); color: #0f172a; border-color: var(--accent);
+      transform: scale(0.95);
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
     }
 
     /* 特別な入力ボックス: 寸法エリア */
@@ -103,80 +128,122 @@
       margin-top: 8px;
     }
     .dims-header {
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
     }
     .m3-badge {
-      background: #172554; border: 1px solid #1e40af;
-      color: #60a5fa; padding: 4px 10px; border-radius: 6px;
-      font-size: 14px; font-weight: bold; font-family: monospace;
+      background: #172554;
+      border: 1px solid #1e40af;
+      color: #60a5fa;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: bold;
+      font-family: monospace;
     }
 
     /* 固定フッター */
     .sticky-footer {
-      position: fixed; bottom: 0; left: 0; right: 0;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
       background: rgba(15, 23, 42, 0.95);
       backdrop-filter: blur(12px);
       border-top: 1px solid #334155;
       padding: 12px 16px;
       padding-bottom: max(12px, env(safe-area-inset-bottom));
-      display: flex; gap: 10px; z-index: 100;
+      display: flex;
+      gap: 10px;
+      z-index: 100;
       box-shadow: 0 -5px 25px rgba(0,0,0,0.6);
     }
     .btn-action {
-      flex: 1; border: none; border-radius: 12px;
-      font-size: 15px; font-weight: bold;
-      display: flex; align-items: center; justify-content: center; flex-direction: column;
-      padding: 10px 0; transition: transform 0.1s;
+      flex: 1;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 10px 0;
+      transition: transform 0.1s;
       height: 56px;
     }
     .btn-action:active { transform: scale(0.96); }
-    .btn-primary { background: #2563eb; color: white; flex: 2; font-size: 17px; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+      flex: 2;
+      font-size: 17px;
+      box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+    }
     .btn-sub { background: #334155; color: #cbd5e1; }
     .btn-save { background: #16a34a; color: white; font-size: 11px; gap: 2px; }
 
     /* リストカード */
     .card-item {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 14px; margin-bottom: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
       border-left: 4px solid var(--accent);
       position: relative;
     }
     .card-header {
-      display: flex; justify-content: space-between; margin-bottom: 8px;
-      border-bottom: 1px solid #334155; padding-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 6px;
     }
-    .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 12px; color: var(--text-sub); }
-    .card-val { font-size: 14px; font-weight: 600; color: #fff; margin-top: 2px; }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+    .card-val {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-top: 2px;
+    }
     .card-edit-btn {
-      position: absolute; top: 10px; right: 10px;
-      background: #334155; border: 1px solid #475569; color: #fff;
-      font-size: 11px; padding: 4px 10px; border-radius: 6px;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #334155;
+      border: 1px solid #475569;
+      color: #fff;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
     }
 
-    /* === 編集モードの視覚強調 === */
-    #inputSection.editing-mode {
-      border-color: #f97316 !important;
-      box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.6);
-    }
-    #rowIndicator.editing-label {
-      color: #fed7aa !important;
-    }
-    .card-item.card-editing {
-      border-color: #f97316;
-      border-left-color: #f97316;
-      box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.7);
-    }
-
-    /* ステータス表示 */
+    /* ステータス表示（トースト） */
     .status-bar {
-      position: fixed; top: 0; left: 0; right: 0;
-      padding: 10px; text-align: center; font-size: 13px; font-weight: bold;
-      z-index: 200; transform: translateY(-100%); transition: transform 0.3s;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 10px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: bold;
+      z-index: 200;
+      transform: translateY(-100%);
+      transition: transform 0.3s;
     }
     .status-bar.show { transform: translateY(0); }
     .status-ok { background: #22c55e; color: #fff; }
     .status-warn { background: #f59e0b; color: #000; }
-
   </style>
 </head>
 <body>
@@ -388,10 +455,32 @@
       return Math.round(q * l * w * h * 0.000001 * 1000) / 1000;
     }
 
-    function clearEditingHighlight() {
-      document.getElementById("inputSection").classList.remove("editing-mode");
-      document.getElementById("rowIndicator").classList.remove("editing-label");
-      document.querySelectorAll(".card-item").forEach(card => card.classList.remove("card-editing"));
+    // ==== フッター表示切替（編集中かどうか） ====
+    function updateFooterForEdit(isEditing) {
+      const addBtn = document.getElementById("stickyAddBtn");
+      const saveBtn = document.getElementById("stickySaveBtn");
+      if (isEditing) {
+        addBtn.textContent = "編集中の明細を上書き保存";
+        saveBtn.style.display = "none";
+      } else {
+        addBtn.textContent = "＋ 追加";
+        saveBtn.style.display = "flex"; // 元のflexレイアウトに戻す
+      }
+    }
+
+    // ==== 入力エリアの見た目を「編集中」っぽくする ====
+    function setEditingVisual(isEditing) {
+      const section = document.getElementById("inputSection");
+      const indicator = document.getElementById("rowIndicator");
+      if (isEditing) {
+        section.style.borderColor = "#f97316";            // オレンジ
+        section.style.boxShadow = "0 0 0 1px #f97316";
+        indicator.style.color = "#fed7aa";
+      } else {
+        section.style.borderColor = "#475569";            // 元の色
+        section.style.boxShadow = "none";
+        indicator.style.color = "#38bdf8";
+      }
     }
 
     // API関連
@@ -418,7 +507,7 @@
       triggerHaptic('selection');
     }
 
-    // フォームクリア
+    // フォームクリア（新規モードに戻す）
     function clearRowForm() {
       currentIndex = null;
       document.getElementById("rowIndicator").textContent = "新規入力モード";
@@ -431,7 +520,8 @@
       document.getElementById("heiInput").value = "";
       document.getElementById("weightInput").value = "";
       document.getElementById("m3Display").textContent = "0.000";
-      clearEditingHighlight();
+      setEditingVisual(false);
+      updateFooterForEdit(false);
     }
 
     // 編集モードへ
@@ -439,12 +529,10 @@
       const it = items[index];
       if (!it) return;
       currentIndex = index;
-      const rowIndicator = document.getElementById("rowIndicator");
-      const inputSection = document.getElementById("inputSection");
-
-      rowIndicator.textContent = `No.${index+1} を編集中`;
-      inputSection.classList.add("editing-mode");
-      rowIndicator.classList.add("editing-label");
+      
+      document.getElementById("rowIndicator").textContent = `No.${index+1} を編集中`;
+      setEditingVisual(true);
+      updateFooterForEdit(true);
 
       document.getElementById("pkgInput").value = it.packageType||"";
       document.getElementById("noFromInput").value = (it.noFrom ?? "");
@@ -455,11 +543,6 @@
       document.getElementById("heiInput").value = (it.H ?? "");
       document.getElementById("weightInput").value = (it.weightKg ?? "");
       document.getElementById("m3Display").textContent = (it.m3 ?? 0).toFixed(3);
-
-      // カードのハイライト
-      clearEditingHighlight();
-      const targetCard = document.querySelector(`.card-item[data-index="${index}"]`);
-      if (targetCard) targetCard.classList.add("card-editing");
 
       // 入力エリアへスムーズスクロール
       const section = document.getElementById("inputSection");
@@ -511,7 +594,6 @@
 
         const card = document.createElement("div");
         card.className = "card-item";
-        card.dataset.index = String(originalIndex);
 
         card.innerHTML = `
           <div class="card-header">
@@ -550,14 +632,11 @@
           </div>
         `;
 
-        // 編集ボタン
+        // 編集ボタンを後から追加
         const editBtn = document.createElement("button");
         editBtn.className = "card-edit-btn";
         editBtn.textContent = "編集";
-        editBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          fillRowForm(originalIndex);
-        });
+        editBtn.onclick = () => fillRowForm(originalIndex);
         card.appendChild(editBtn);
 
         container.appendChild(card);
@@ -568,6 +647,8 @@
     window.addEventListener("DOMContentLoaded", () => {
       document.getElementById("dateInput").value = todayString();
       updateHeaderStatus();
+      updateFooterForEdit(false);
+      setEditingVisual(false);
 
       // 入力イベント監視
       document.querySelectorAll("input, textarea").forEach(el => {
@@ -640,7 +721,7 @@
         }
       });
 
-      // 追加ボタン
+      // 追加 / 上書きボタン
       document.getElementById("stickyAddBtn").addEventListener("click", () => {
         const row = collectRowForm();
         if(!row) return showToast("値を入力してください", "warn");
@@ -666,7 +747,7 @@
         triggerHaptic('selection');
       });
 
-      // 保存ボタン
+      // 保存ボタン（ヘッダ＋items）
       document.getElementById("stickySaveBtn").addEventListener("click", async () => {
         const id = document.getElementById("hainyuId").value.trim();
         if(!id) return;
@@ -730,16 +811,24 @@
 
       // タッチ描画
       canvas.addEventListener("touchstart", e => {
-        e.preventDefault(); const r=canvas.getBoundingClientRect();
-        startX=e.touches[0].clientX-r.left; startY=e.touches[0].clientY-r.top; isDrag=true;
+        e.preventDefault();
+        const r=canvas.getBoundingClientRect();
+        startX=e.touches[0].clientX-r.left;
+        startY=e.touches[0].clientY-r.top;
+        isDrag=true;
       });
       canvas.addEventListener("touchmove", e => {
-        if(!isDrag) return; const r=canvas.getBoundingClientRect();
-        curX=e.touches[0].clientX-r.left; curY=e.touches[0].clientY-r.top;
+        if(!isDrag) return;
+        const r=canvas.getBoundingClientRect();
+        curX=e.touches[0].clientX-r.left;
+        curY=e.touches[0].clientY-r.top;
         ctx.drawImage(imgObj,0,0,canvas.width,canvas.height);
         const w=curX-startX, h=curY-startY;
-        ctx.strokeStyle="#38bdf8"; ctx.lineWidth=2; ctx.strokeRect(startX,startY,w,h);
-        ctx.fillStyle="rgba(56,189,248,0.3)"; ctx.fillRect(startX,startY,w,h);
+        ctx.strokeStyle="#38bdf8";
+        ctx.lineWidth=2;
+        ctx.strokeRect(startX,startY,w,h);
+        ctx.fillStyle="rgba(56,189,248,0.3)";
+        ctx.fillRect(startX,startY,w,h);
       });
       canvas.addEventListener("touchend", () => {
         isDrag=false;
@@ -757,19 +846,27 @@
         
         const scale = imgObj.width / canvas.width;
         const hc = document.createElement("canvas");
-        hc.width = Math.abs(cropRect.w*scale); hc.height = Math.abs(cropRect.h*scale);
+        hc.width = Math.abs(cropRect.w*scale);
+        hc.height = Math.abs(cropRect.h*scale);
         const hctx = hc.getContext("2d");
-        hctx.drawImage(imgObj, 
-          Math.min(cropRect.x, cropRect.x+cropRect.w)*scale, Math.min(cropRect.y, cropRect.y+cropRect.h)*scale, 
-          hc.width, hc.height, 0, 0, hc.width, hc.height
+        hctx.drawImage(
+          imgObj, 
+          Math.min(cropRect.x, cropRect.x+cropRect.w)*scale,
+          Math.min(cropRect.y, cropRect.y+cropRect.h)*scale, 
+          hc.width, hc.height,
+          0, 0, hc.width, hc.height
         );
         
         try {
-          const res = await Tesseract.recognize(hc, 'eng', { tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-./ " });
+          const res = await Tesseract.recognize(hc, 'eng', {
+            tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-./ "
+          });
           const txt = res.data.text.replace(/[^A-Z0-9\-\.\/ \n]/g, "").trim();
           const el = document.getElementById("markInput");
           el.value = (el.value ? el.value+"\n" : "") + txt;
-          markDirty(); showToast("完了"); triggerHaptic('success');
+          markDirty();
+          showToast("完了");
+          triggerHaptic('success');
         } catch(e) { 
           console.error(e);
           showToast("解析エラー", "warn"); 
