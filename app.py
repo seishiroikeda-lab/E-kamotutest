@@ -62,7 +62,7 @@ def get_db():
     return conn
 
 
-# ===== ページ =====
+# ===== ページルーティング =====
 
 @app.route("/")
 def index():
@@ -76,7 +76,14 @@ def edit_page():
 
 @app.route("/mobile-edit")
 def mobile_edit_page():
+    """従来のスマホ入力画面"""
     return render_template("mobile_edit.html")
+
+
+@app.route("/test-mobile")
+def test_mobile_page():
+    """★ 追加: 新しいスマホ入力UIテスト画面"""
+    return render_template("testmobile.html")
 
 
 @app.route("/report")
@@ -89,7 +96,6 @@ def search_page():
     return render_template("search.html")
 
 
-# ★ 新しい一覧 / 集計ページ
 @app.route("/list")
 def list_page():
     return render_template("list.html")
@@ -208,7 +214,7 @@ def api_save_hainyu(hainyu_id):
         (hainyu_id, date, shipper, dest, item_name, mark),
     )
 
-    # 明細は一度削除してから挿入し直し
+    # 明細は一度削除してから挿入し直し（単純化のため）
     cur.execute("DELETE FROM hainyu_items WHERE hainyu_id = ?", (hainyu_id,))
 
     for it in items:
@@ -248,7 +254,7 @@ def api_save_hainyu(hainyu_id):
     return jsonify({"status": "ok"})
 
 
-# ===== API: 検索（キーワード検索用・既存） =====
+# ===== API: 検索（キーワード検索用） =====
 
 @app.route("/api/search", methods=["GET"])
 def api_search():
@@ -296,7 +302,7 @@ def api_search():
                 "shipper": r["shipper"],
                 "dest": r["dest"],
                 "itemName": r["item_name"],
-                "lastUpdated": r["date"],  # 今は date を流用
+                "lastUpdated": r["date"],
             }
         )
 
@@ -304,7 +310,6 @@ def api_search():
 
 
 # ===== API: 一覧 / 集計用 =====
-# 日付・荷主・仕向け地で絞り込み、合計個数・合計M3・合計重量を返す
 
 @app.route("/api/summary", methods=["GET"])
 def api_summary():
@@ -323,9 +328,9 @@ def api_summary():
             h.shipper,
             h.dest,
             h.item_name,
-            COUNT(i.id)                          AS item_count,
-            COALESCE(SUM(i.qty), 0)              AS total_qty,
-            COALESCE(SUM(i.m3), 0)               AS total_m3,
+            COUNT(i.id)                      AS item_count,
+            COALESCE(SUM(i.qty), 0)          AS total_qty,
+            COALESCE(SUM(i.m3), 0)           AS total_m3,
             COALESCE(SUM(i.qty * i.weight_kg),0) AS total_weight
         FROM hainyu_headers h
         LEFT JOIN hainyu_items i
@@ -391,4 +396,6 @@ def api_summary():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # 開発サーバー起動
+    # 外部公開する場合は host='0.0.0.0' にする等
+    app.run(debug=True, port=5000)
