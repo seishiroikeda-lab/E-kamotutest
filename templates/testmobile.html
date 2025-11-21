@@ -153,6 +153,20 @@
       font-size: 11px; padding: 4px 10px; border-radius: 6px;
     }
 
+    /* === 編集モードの視覚強調 === */
+    #inputSection.editing-mode {
+      border-color: #f97316 !important;
+      box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.6);
+    }
+    #rowIndicator.editing-label {
+      color: #fed7aa !important;
+    }
+    .card-item.card-editing {
+      border-color: #f97316;
+      border-left-color: #f97316;
+      box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.7);
+    }
+
     /* ステータス表示 */
     .status-bar {
       position: fixed; top: 0; left: 0; right: 0;
@@ -173,7 +187,7 @@
     <a href="{{ url_for('index') }}" style="color:var(--accent); text-decoration:none; font-size:14px; font-weight:bold;">
       &lt; メニュー
     </a>
-    <div id="headerStatus" style="font-size:12px; color:#64748b;">未選択</div>
+    <div id="headerStatus" style="font-size:12px; color:#64748b;">番号未選択</div>
   </div>
 
   <div class="mobile-app">
@@ -282,8 +296,7 @@
     </div>
 
     <div class="section-title" style="margin: 0 4px 8px;">登録済み明細</div>
-    <div id="rowsList" style="margin-bottom: 40px;">
-      </div>
+    <div id="rowsList" style="margin-bottom: 40px;"></div>
 
   </div>
 
@@ -325,7 +338,7 @@
     function showToast(msg, type='ok') {
       const bar = document.getElementById("statusBar");
       bar.textContent = msg;
-      bar.className = `status-bar show ${type === 'ok' ? 'status-ok' : 'status-warn'}`;
+      bar.className = "status-bar show " + (type === 'ok' ? 'status-ok' : 'status-warn');
       setTimeout(() => {
         bar.classList.remove("show");
       }, 2500);
@@ -346,7 +359,7 @@
       const el = document.getElementById("headerStatus");
       const saveBtn = document.getElementById("stickySaveBtn");
       
-      if(!currentHainyuId) {
+      if (!currentHainyuId) {
         el.innerHTML = "番号未選択";
         saveBtn.disabled = true;
         saveBtn.style.opacity = "0.5";
@@ -356,12 +369,18 @@
       saveBtn.disabled = false;
       saveBtn.style.opacity = "1";
 
-      if(isDirty) el.innerHTML = `<span style="color:#f87171;">● 未保存</span> ${currentHainyuId}`;
-      else el.innerHTML = `<span style="color:#4ade80;">● 保存済</span> ${currentHainyuId}`;
+      if (isDirty) {
+        el.innerHTML = `<span style="color:#f87171;">● 未保存</span> ${currentHainyuId}`;
+      } else {
+        el.innerHTML = `<span style="color:#4ade80;">● 保存済</span> ${currentHainyuId}`;
+      }
     }
 
     function markDirty() {
-      if(!isDirty) { isDirty = true; updateHeaderStatus(); }
+      if (!isDirty) {
+        isDirty = true;
+        updateHeaderStatus();
+      }
     }
 
     function calcM3(qty, L, W, H) {
@@ -369,16 +388,26 @@
       return Math.round(q * l * w * h * 0.000001 * 1000) / 1000;
     }
 
+    function clearEditingHighlight() {
+      document.getElementById("inputSection").classList.remove("editing-mode");
+      document.getElementById("rowIndicator").classList.remove("editing-label");
+      document.querySelectorAll(".card-item").forEach(card => card.classList.remove("card-editing"));
+    }
+
     // API関連
     async function apiLoadRecord(id) {
       const res = await fetch(`/api/hainyu/${encodeURIComponent(id)}`);
-      if(res.status===404) return null;
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("load failed");
       return await res.json();
     }
     async function apiSaveRecord(id, record) {
-      await fetch(`/api/hainyu/${encodeURIComponent(id)}`, {
-        method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(record)
+      const res = await fetch(`/api/hainyu/${encodeURIComponent(id)}`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(record)
       });
+      if (!res.ok) throw new Error("save failed");
     }
 
     // チップ機能
@@ -402,23 +431,35 @@
       document.getElementById("heiInput").value = "";
       document.getElementById("weightInput").value = "";
       document.getElementById("m3Display").textContent = "0.000";
+      clearEditingHighlight();
     }
 
     // 編集モードへ
     window.fillRowForm = function(index) {
       const it = items[index];
+      if (!it) return;
       currentIndex = index;
-      document.getElementById("rowIndicator").textContent = `No.${index+1} を編集中`;
-      
+      const rowIndicator = document.getElementById("rowIndicator");
+      const inputSection = document.getElementById("inputSection");
+
+      rowIndicator.textContent = `No.${index+1} を編集中`;
+      inputSection.classList.add("editing-mode");
+      rowIndicator.classList.add("editing-label");
+
       document.getElementById("pkgInput").value = it.packageType||"";
-      document.getElementById("noFromInput").value = it.noFrom??"";
-      document.getElementById("noToInput").value = it.noTo??"";
-      document.getElementById("qtyInput").value = it.qty??"";
-      document.getElementById("lenInput").value = it.L??"";
-      document.getElementById("widInput").value = it.W??"";
-      document.getElementById("heiInput").value = it.H??"";
-      document.getElementById("weightInput").value = it.weightKg??"";
-      document.getElementById("m3Display").textContent = it.m3?.toFixed(3) || "0.000";
+      document.getElementById("noFromInput").value = (it.noFrom ?? "");
+      document.getElementById("noToInput").value = (it.noTo ?? "");
+      document.getElementById("qtyInput").value = (it.qty ?? "");
+      document.getElementById("lenInput").value = (it.L ?? "");
+      document.getElementById("widInput").value = (it.W ?? "");
+      document.getElementById("heiInput").value = (it.H ?? "");
+      document.getElementById("weightInput").value = (it.weightKg ?? "");
+      document.getElementById("m3Display").textContent = (it.m3 ?? 0).toFixed(3);
+
+      // カードのハイライト
+      clearEditingHighlight();
+      const targetCard = document.querySelector(`.card-item[data-index="${index}"]`);
+      if (targetCard) targetCard.classList.add("card-editing");
 
       // 入力エリアへスムーズスクロール
       const section = document.getElementById("inputSection");
@@ -438,7 +479,7 @@
       const H = document.getElementById("heiInput").value;
       const weight = document.getElementById("weightInput").value;
       
-      if(!pkg && !noFrom && !noTo && !qty && !L && !W && !H && !weight) return null;
+      if (!pkg && !noFrom && !noTo && !qty && !L && !W && !H && !weight) return null;
       
       return {
         packageType: pkg,
@@ -457,42 +498,70 @@
     function renderRowsList() {
       const container = document.getElementById("rowsList");
       container.innerHTML = "";
-      if(!items.length) {
+      if (!items.length) {
         container.innerHTML = `<div style="text-align:center; color:#475569; padding:20px;">明細なし</div>`;
         return;
       }
 
-      // 逆順表示
-      [...items].forEach((it, idx) => {
-        const originalIndex = idx; // 配列のインデックス
+      // 新しいものを上にしたいので逆順ループ
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        const originalIndex = i;
+        const totalW = (Number(it.qty) || 0) * (Number(it.weightKg) || 0);
+
         const card = document.createElement("div");
         card.className = "card-item";
-        
-        // 編集ボタン
-        const editBtn = document.createElement("button");
-        editBtn.className = "card-edit-btn";
-        editBtn.textContent = "編集";
-        editBtn.onclick = () => fillRowForm(originalIndex);
-        card.appendChild(editBtn);
+        card.dataset.index = String(originalIndex);
 
-        const totalW = (Number(it.qty)||0) * (Number(it.weightKg)||0);
-
-        card.innerHTML += `
+        card.innerHTML = `
           <div class="card-header">
             <span style="color:var(--accent); font-weight:bold;">#${originalIndex+1}</span>
             <span style="font-size:14px; margin-left:8px; color:#cbd5e1;">${it.packageType||"-"}</span>
           </div>
           <div class="card-grid">
-            <div><div class="input-label">個数</div><div class="card-val">${it.qty||"-"}</div></div>
-            <div><div class="input-label">No.</div><div class="card-val">${(it.noFrom||"") + (it.noTo ? "~"+it.noTo : "")}</div></div>
-            <div><div class="input-label">サイズ</div><div class="card-val">${it.L||0}×${it.W||0}×${it.H||0}</div></div>
-            <div><div class="input-label">単重</div><div class="card-val">${it.weightKg||0}</div></div>
-            <div><div class="input-label">行重量</div><div class="card-val">${totalW.toFixed(1)}</div></div>
-            <div><div class="input-label">M3</div><div class="card-val" style="color:var(--accent);">${it.m3?.toFixed(3)}</div></div>
+            <div>
+              <div class="input-label">個数</div>
+              <div class="card-val">${it.qty ?? "-"}</div>
+            </div>
+            <div>
+              <div class="input-label">No.</div>
+              <div class="card-val">
+                ${(it.noFrom ?? "") + (it.noTo ? "~" + it.noTo : "")}
+              </div>
+            </div>
+            <div>
+              <div class="input-label">サイズ</div>
+              <div class="card-val">${it.L || 0}×${it.W || 0}×${it.H || 0}</div>
+            </div>
+            <div>
+              <div class="input-label">単重</div>
+              <div class="card-val">${it.weightKg || 0}</div>
+            </div>
+            <div>
+              <div class="input-label">行重量</div>
+              <div class="card-val">${totalW.toFixed(1)}</div>
+            </div>
+            <div>
+              <div class="input-label">M3</div>
+              <div class="card-val" style="color:var(--accent);">
+                ${(it.m3 ?? 0).toFixed(3)}
+              </div>
+            </div>
           </div>
         `;
-        container.prepend(card);
-      });
+
+        // 編集ボタン
+        const editBtn = document.createElement("button");
+        editBtn.className = "card-edit-btn";
+        editBtn.textContent = "編集";
+        editBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          fillRowForm(originalIndex);
+        });
+        card.appendChild(editBtn);
+
+        container.appendChild(card);
+      }
     }
 
     // 初期化
@@ -500,12 +569,12 @@
       document.getElementById("dateInput").value = todayString();
       updateHeaderStatus();
 
-      // Inputイベント監視
+      // 入力イベント監視
       document.querySelectorAll("input, textarea").forEach(el => {
         el.addEventListener("input", () => {
           markDirty();
           // M3 自動計算トリガー
-          if(["qtyInput","lenInput","widInput","heiInput"].includes(el.id)) {
+          if (["qtyInput","lenInput","widInput","heiInput"].includes(el.id)) {
             const q=document.getElementById("qtyInput").value;
             const l=document.getElementById("lenInput").value;
             const w=document.getElementById("widInput").value;
@@ -534,22 +603,41 @@
         showToast("読込中...");
         try {
           const r = await apiLoadRecord(id);
+          const dateInput = document.getElementById("dateInput");
+          const shipperInput = document.getElementById("shipperInput");
+          const destInput = document.getElementById("destInput");
+          const itemNameInput = document.getElementById("itemNameInput");
+          const markInput = document.getElementById("markInput");
+
           if(r) {
             items = r.items || [];
-            // header反映
             const h = r.header || {};
-            document.getElementById("dateInput").value = h.date || todayString();
-            document.getElementById("shipperInput").value = h.shipper || "";
-            document.getElementById("destInput").value = h.dest || "";
-            document.getElementById("itemNameInput").value = h.itemName || "";
-            document.getElementById("markInput").value = h.mark || "";
+            dateInput.value = h.date || todayString();
+            shipperInput.value = h.shipper || "";
+            destInput.value = h.dest || "";
+            itemNameInput.value = h.itemName || "";
+            markInput.value = h.mark || "";
+            showToast("読込完了");
           } else {
+            // 新規レコードとして扱う
             items = [];
+            dateInput.value = todayString();
+            shipperInput.value = "";
+            destInput.value = "";
+            itemNameInput.value = "";
+            markInput.value = "";
+            showToast("新規として開始します");
           }
-          currentHainyuId = id; isDirty = false;
-          updateHeaderStatus(); renderRowsList(); clearRowForm();
-          showToast("読込完了"); triggerHaptic('success');
-        } catch(e) { showToast("エラー", "warn"); }
+          currentHainyuId = id;
+          isDirty = false;
+          updateHeaderStatus();
+          renderRowsList();
+          clearRowForm();
+          triggerHaptic('success');
+        } catch(e) {
+          console.error(e);
+          showToast("エラーが発生しました", "warn");
+        }
       });
 
       // 追加ボタン
@@ -592,9 +680,21 @@
         showToast("保存中...");
         try {
           await apiSaveRecord(id, {header, items});
-          isDirty = false; updateHeaderStatus();
-          showToast("保存しました！"); triggerHaptic('success');
-        } catch(e) { showToast("保存失敗", "warn"); }
+          isDirty = false;
+          updateHeaderStatus();
+          showToast("保存しました！");
+          triggerHaptic('success');
+        } catch(e) {
+          console.error(e);
+          showToast("保存失敗", "warn");
+        }
+      });
+
+      // 未保存で離脱しようとしたら警告
+      window.addEventListener("beforeunload", (e) => {
+        if (!isDirty) return;
+        e.preventDefault();
+        e.returnValue = "";
       });
 
       // OCR初期化
@@ -670,7 +770,10 @@
           const el = document.getElementById("markInput");
           el.value = (el.value ? el.value+"\n" : "") + txt;
           markDirty(); showToast("完了"); triggerHaptic('success');
-        } catch(e) { showToast("解析エラー", "warn"); }
+        } catch(e) { 
+          console.error(e);
+          showToast("解析エラー", "warn"); 
+        }
       });
     }
   </script>

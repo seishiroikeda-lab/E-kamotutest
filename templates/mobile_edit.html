@@ -2,315 +2,232 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>スマホ用 搬入データ入力（現場）</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>スマホ現場入力</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <!-- ブラウザ用 OCR ライブラリ -->
   <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
 </head>
-<body>
-  <div class="top-nav">
-    <a href="{{ url_for('index') }}">メニュー</a>
-    <span>›</span>
-    <span>スマホ用 搬入データ入力</span>
+<body class="mobile-body">
+
+  <!-- 上部ステータスバー（トースト） -->
+  <div id="statusBar" class="status-bar"></div>
+
+  <!-- 戻るリンク＋保存状態 -->
+  <div style="padding: 12px; display:flex; justify-content:space-between; align-items:center;">
+    <a href="{{ url_for('index') }}" style="color:#38bdf8; text-decoration:none; font-size:14px; font-weight:bold;">
+      &lt; メニュー
+    </a>
+    <div id="headerStatus" style="font-size:12px; color:#64748b;">番号未選択</div>
   </div>
 
-  <div class="app">
-    <div class="card">
+  <div class="mobile-app">
 
-      <!-- ヘッダー -->
-      <div class="app-header">
-        <div>
-          <div class="app-title">
-            スマホ用 搬入入力
-            <span class="app-title-badge">現場入力</span>
-          </div>
-          <div class="app-subtitle">
-            現場で長さ・重量を測りながら、搬入番号ごとに簡単に入力できる画面です。
-          </div>
-          <div id="editingInfo" class="editing-info">
-            搬入番号未選択
-          </div>
-        </div>
-      </div>
-
-      <!-- 搬入番号 -->
-      <div class="section">
+    <!-- 搬入番号 -->
+    <div class="section">
+      <div class="section-header">
         <div class="section-title">搬入番号</div>
-        <div class="field-grid">
-          <div class="field">
-            <label for="hainyuId">搬入番号</label>
-            <input
-              type="text"
-              id="hainyuId"
-              placeholder="例：2025-00123（新規/既存どちらもOK）"
-            />
-            <div class="field-hint">
-              現場で受け取った搬入番号を入力してください。既存があれば自動で読み込みます。
-            </div>
-          </div>
-          <div class="field">
-            <label>&nbsp;</label>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-              <button id="loadBtn" class="btn-secondary">読込 / 新規開始</button>
-              <button id="toggleHelpBtn" class="btn-secondary btn-small">？ ヘルプ</button>
-            </div>
-          </div>
-        </div>
-        <div id="helpPanel" class="section-help" style="display:none;">
-          <ul style="margin:0; padding-left:18px;">
-            <li>搬入番号を入力して <strong>Enter</strong> または「読込 / 新規開始」を押すと読み込みます。</li>
-            <li>既存番号の場合は過去のデータが表示されます。初めての番号なら新規として入力できます。</li>
-            <li>明細を追加したあと「この搬入番号で保存する」を押して確定します。</li>
-          </ul>
-        </div>
       </div>
-
-      <!-- 基本情報 -->
-      <div class="section">
-        <div class="section-title">基本情報</div>
-        <div class="field-grid">
-          <div class="field">
-            <label for="dateInput">搬入年月日</label>
-            <input type="date" id="dateInput" />
-          </div>
-          <div class="field">
-            <label for="shipperInput">荷主</label>
-            <input type="text" id="shipperInput" placeholder="例：○○商事株式会社" />
-          </div>
-        </div>
-
-        <div class="field-grid" style="margin-top:6px;">
-          <div class="field">
-            <label for="destInput">仕向け地</label>
-            <input type="text" id="destInput" placeholder="例：SINGAPORE / HARBOR A" />
-          </div>
-          <div class="field">
-            <label for="itemNameInput">品名</label>
-            <input type="text" id="itemNameInput" placeholder="例：機械部品 / 衣類 / 食品 等" />
-          </div>
-        </div>
-
-        <!-- マーク + OCR -->
-        <div class="field" style="margin-top:8px;">
-          <label for="markInput">
-            マーク（荷印）
-            <button type="button" id="markOcrBtn" class="btn-secondary btn-small btn-xs">
-              📷 画像から文字
-            </button>
-          </label>
-          <textarea
-            id="markInput"
-            placeholder="例：&#10;ABC / TOKYO&#10;LOT NO.1234&#10;MADE IN JAPAN"
-          ></textarea>
-
-          <!-- カメラ/画像選択用 input（隠し） -->
-          <input
-            type="file"
-            id="markOcrFile"
-            accept="image/*"
-            capture="environment"
-            style="display:none;"
-          />
-          <div class="field-hint">
-            📷 を押してラベル等を撮影 → 必要な部分だけをトリミングして英数字だけを読み取ります。
-          </div>
-        </div>
-      </div>
-
-      <!-- 明細入力 -->
-      <div class="section">
-        <div class="section-title">
-          明細入力
-          <span id="rowIndicator" style="font-size:11px; color:var(--text-sub); margin-left:8px;">
-            新規明細
-          </span>
-        </div>
-
-        <div class="field">
-          <label for="pkgInput">荷姿</label>
-          <input
-            type="text"
-            id="pkgInput"
-            placeholder="例：段ボール箱 / パレット 等"
-          />
-        </div>
-
-        <div class="field-grid" style="margin-top:6px;">
-          <div class="field">
-            <label for="noFromInput">№開始</label>
-            <input type="number" id="noFromInput" inputmode="numeric" />
-          </div>
-          <div class="field">
-            <label for="noToInput">№終了</label>
-            <input type="number" id="noToInput" inputmode="numeric" />
-          </div>
-          <div class="field">
-            <label for="qtyInput">個数</label>
-            <input type="number" id="qtyInput" inputmode="numeric" />
-          </div>
-        </div>
-        <div class="field-hint" style="margin-top:4px;">
-          例）№開始に <strong>1</strong>、№終了に <strong>10</strong> と入れると、個数は <strong>10</strong> と自動計算されます。どちらか片方だけなら個数は <strong>1</strong> になります。
-        </div>
-
-        <div class="field-grid" style="margin-top:8px;">
-          <div class="field">
-            <label for="lenInput">L (cm)</label>
-            <input type="number" id="lenInput" inputmode="decimal" />
-          </div>
-          <div class="field">
-            <label for="widInput">W (cm)</label>
-            <input type="number" id="widInput" inputmode="decimal" />
-          </div>
-          <div class="field">
-            <label for="heiInput">H (cm)</label>
-            <input type="number" id="heiInput" inputmode="decimal" />
-          </div>
-        </div>
-
-        <div class="field-grid" style="margin-top:8px;">
-          <div class="field">
-            <label for="weightInput">重量 (kg/1個)</label>
-            <input type="number" id="weightInput" inputmode="decimal" />
-          </div>
-          <div class="field">
-            <label for="m3Input">M3（自動計算）</label>
-            <input type="text" id="m3Input" readonly />
-          </div>
-        </div>
-        <div class="field-hint" style="margin-top:4px;">
-          M3 = 個数 × L × W × H × 0.000001（小数第4位四捨五入）で自動計算されます。
-        </div>
-
-        <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
-          <button id="rowClearBtn" class="btn-secondary btn-small">この明細をクリア</button>
-          <button id="rowSaveBtn" class="btn-primary btn-small">明細を追加 / 更新</button>
-        </div>
-      </div>
-
-      <!-- 明細一覧 -->
-      <div class="section">
-        <div class="section-title">登録済み明細一覧</div>
-        <div id="rowsList">
-          <div class="table-note">まだ明細がありません。</div>
-        </div>
-      </div>
-
-      <!-- 合計＋保存 -->
-      <div class="section">
-        <div class="footer-bar">
-          <div class="footer-left">
-            <div class="totals">
-              <div>
-                <div class="totals-label">総 M3</div>
-                <div class="totals-value">
-                  <span id="totalM3">0.000</span><span> m³</span>
-                </div>
-              </div>
-              <div>
-                <div class="totals-label">総重量</div>
-                <div class="totals-value">
-                  <span id="totalWeight">0.0</span><span> kg</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <button id="saveBtn" class="btn-primary" disabled>この搬入番号で保存する</button>
-          </div>
-        </div>
-        <div id="statusMsg" class="status"></div>
+      <div class="row">
+        <input type="text" id="hainyuId" class="mobile-input" placeholder="例: 2025-00123">
+        <button id="loadBtn"
+                class="mobile-input"
+                style="width:80px; background:#475569; border-color:#64748b; font-size:14px; font-weight:bold; text-align:center;">
+          読込
+        </button>
       </div>
     </div>
+
+    <!-- 基本情報 -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">基本情報</div>
+      </div>
+
+      <div class="row" style="margin-bottom:12px;">
+        <div class="col">
+          <span class="input-label">搬入日</span>
+          <input type="date" id="dateInput" class="mobile-input">
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <span class="input-label">荷主 / 仕向け地 / 品名</span>
+        <div class="row" style="margin-bottom:8px;">
+          <input type="text" id="shipperInput" class="mobile-input" placeholder="荷主" style="font-size:14px;">
+          <input type="text" id="destInput" class="mobile-input" placeholder="仕向け地" style="font-size:14px;">
+        </div>
+        <input type="text" id="itemNameInput" class="mobile-input" placeholder="品名" style="font-size:14px;">
+      </div>
+      
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span class="input-label">マーク</span>
+          <button type="button" id="markOcrBtn"
+                  style="background:none; border:none; color:#38bdf8; font-size:12px; padding:0;">
+            📷 カメラ読取
+          </button>
+          <input type="file" id="markOcrFile" accept="image/*" capture="environment" style="display:none;">
+        </div>
+        <textarea id="markInput" class="mobile-input" style="min-height:60px; font-family:monospace; font-size:14px;"></textarea>
+      </div>
+    </div>
+
+    <!-- 明細入力 -->
+    <div class="section" id="inputSection">
+      <div class="section-header">
+        <div class="section-title">明細入力</div>
+        <div id="rowIndicator" style="font-size:11px; color:#38bdf8; font-weight:bold;">新規入力モード</div>
+      </div>
+
+      <!-- 荷姿 -->
+      <div style="margin-bottom:12px;">
+        <span class="input-label">荷姿</span>
+        <div class="row" style="margin-bottom:8px;">
+          <input type="text" id="pkgInput" class="mobile-input" placeholder="C/T">
+        </div>
+        <div class="chip-scroll">
+          <button type="button" class="chip" onclick="setPkg('C/T')">C/T</button>
+          <button type="button" class="chip" onclick="setPkg('C/S')">C/S</button>
+          <button type="button" class="chip" onclick="setPkg('PLT')">PLT</button>
+          <button type="button" class="chip" onclick="setPkg('SKID')">SKID</button>
+          <button type="button" class="chip" onclick="setPkg('BDL')">BDL</button>
+          <button type="button" class="chip" onclick="setPkg('BOX')">BOX</button>
+        </div>
+      </div>
+
+      <!-- No. & 個数 -->
+      <div class="row" style="margin-bottom:8px;">
+        <div class="col">
+          <span class="input-label">No.開始</span>
+          <input type="number" id="noFromInput" inputmode="numeric" class="mobile-input" placeholder="1">
+        </div>
+        <div class="col">
+          <span class="input-label">No.終了</span>
+          <input type="number" id="noToInput" inputmode="numeric" class="mobile-input" placeholder="10">
+        </div>
+        <div class="col">
+          <span class="input-label" style="color:#38bdf8;">個数</span>
+          <input type="number" id="qtyInput" inputmode="numeric" class="mobile-input"
+                 style="border-color:#38bdf8; background:rgba(56,189,248,0.1); font-weight:bold;">
+        </div>
+      </div>
+
+      <!-- 寸法・重量 -->
+      <div class="dims-box">
+        <div class="dims-header">
+          <span class="input-label" style="margin:0;">寸法 (cm) &amp; 重量</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:10px; color:#94a3b8;">M3:</span>
+            <div id="m3Display" class="m3-badge">0.000</div>
+          </div>
+        </div>
+        
+        <div class="row" style="margin-bottom:8px;">
+          <div class="col"><input type="number" id="lenInput" inputmode="decimal" class="mobile-input" placeholder="L"></div>
+          <div class="col"><input type="number" id="widInput" inputmode="decimal" class="mobile-input" placeholder="W"></div>
+          <div class="col"><input type="number" id="heiInput" inputmode="decimal" class="mobile-input" placeholder="H"></div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <input type="number" id="weightInput" inputmode="decimal" class="mobile-input" placeholder="kg/個">
+          </div>
+          <div class="col" style="flex:2;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 登録済み明細 -->
+    <div class="section-title" style="margin: 0 4px 8px;">登録済み明細</div>
+    <div id="rowsList" style="margin-bottom: 40px;"></div>
+
   </div>
 
-  <!-- 画像トリミング用オーバーレイ -->
-  <div
-    id="cropOverlay"
-    style="
-      display:none;
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,0.55);
-      z-index:9999;
-      align-items:center;
-      justify-content:center;
-      padding:10px;
-    "
-  >
-    <div
-      style="
-        background:#ffffff;
-        border-radius:12px;
-        max-width:600px;
-        width:100%;
-        padding:10px;
-        box-shadow:0 10px 30px rgba(0,0,0,0.45);
-        display:flex;
-        flex-direction:column;
-        gap:8px;
-      "
-    >
-      <div style="font-size:13px; font-weight:600;">
-        読み取りたい範囲をドラッグして選択してください
-      </div>
-      <canvas
-        id="cropCanvas"
-        style="width:100%; max-height:60vh; border:1px solid #e5e7eb; touch-action:none; background:#000;"
-      ></canvas>
-      <div style="font-size:11px; color:#6b7280;">
-        画像上を指でドラッグして四角形の枠を描き、その範囲だけを英数字でOCRします。
-      </div>
-      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
-        <button id="cropCancelBtn" class="btn-secondary btn-small">キャンセル</button>
-        <button id="cropOkBtn" class="btn-primary btn-small">この範囲で読み取る</button>
+  <!-- 画面下の固定ボタン -->
+  <div class="sticky-footer">
+    <button id="stickyClearBtn" class="btn-action btn-sub">
+      クリア
+    </button>
+    <button id="stickyAddBtn" class="btn-action btn-primary">
+      ＋ 追加
+    </button>
+    <button id="stickySaveBtn" class="btn-action btn-save" disabled>
+      <span>💾</span>
+      <span>保存</span>
+    </button>
+  </div>
+
+  <!-- OCR用トリミングオーバーレイ -->
+  <div id="cropOverlay"
+       style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+    <div style="width:100%; max-width:500px; display:flex; flex-direction:column; gap:16px;">
+      <div style="color:#fff; text-align:center;">範囲をドラッグして選択</div>
+      <canvas id="cropCanvas" style="background:#000; width:100%; border:1px solid #475569; touch-action:none;"></canvas>
+      <div class="row">
+        <button id="cropCancelBtn" class="mobile-input" style="background:#334155;">キャンセル</button>
+        <button id="cropOkBtn" class="mobile-input"
+                style="background:#38bdf8; border-color:#38bdf8; color:#000; font-weight:bold;">
+          読取
+        </button>
       </div>
     </div>
   </div>
 
   <script>
+    // ===== バイブレーション =====
+    function triggerHaptic(type = 'selection') {
+      if (navigator.vibrate) {
+        if (type === 'success') navigator.vibrate(50);
+        else if (type === 'error') navigator.vibrate([50, 50, 50]);
+        else navigator.vibrate(15);
+      }
+    }
+
+    // ===== トースト表示 =====
+    function showToast(msg, type = 'ok') {
+      const bar = document.getElementById("statusBar");
+      bar.textContent = msg;
+      bar.className = "status-bar show " + (type === 'ok' ? 'status-ok' : 'status-warn');
+      setTimeout(() => {
+        bar.classList.remove("show");
+      }, 2500);
+    }
+
     // ===== 状態管理 =====
     let currentHainyuId = null;
     let isDirty = false;
     let items = [];
-    let currentIndex = null; // 編集中明細 index（新規は null）
+    let currentIndex = null;
 
     function todayString() {
       const d = new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd}`;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
-    function setStatus(msg, type = "") {
-      const el = document.getElementById("statusMsg");
-      el.textContent = msg || "";
-      el.classList.remove("ok", "warn");
-      if (type) el.classList.add(type);
-    }
-
-    function updateEditingIndicator() {
-      const el = document.getElementById("editingInfo");
+    function updateHeaderStatus() {
+      const el = document.getElementById("headerStatus");
+      const saveBtn = document.getElementById("stickySaveBtn");
+      
       if (!currentHainyuId) {
-        el.textContent = "搬入番号未選択";
-        el.className = "editing-info";
+        el.innerHTML = "番号未選択";
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = "0.5";
         return;
       }
+      
+      saveBtn.disabled = false;
+      saveBtn.style.opacity = "1";
+
       if (isDirty) {
-        el.textContent = `編集中: ${currentHainyuId}（未保存の変更あり）`;
-        el.className = "editing-info editing-info-dirty";
+        el.innerHTML = `<span style="color:#f87171;">● 未保存</span> ${currentHainyuId}`;
       } else {
-        el.textContent = `編集中: ${currentHainyuId}（保存済）`;
-        el.className = "editing-info editing-info-saved";
+        el.innerHTML = `<span style="color:#4ade80;">● 保存済</span> ${currentHainyuId}`;
       }
     }
 
     function markDirty() {
       if (!isDirty) {
         isDirty = true;
-        updateEditingIndicator();
+        updateHeaderStatus();
       }
     }
 
@@ -319,47 +236,47 @@
       const l = Number(L) || 0;
       const w = Number(W) || 0;
       const h = Number(H) || 0;
-      const raw = q * l * w * h * 0.000001;
-      return Math.round(raw * 1000) / 1000;
+      return Math.round(q * l * w * h * 0.000001 * 1000) / 1000;
     }
 
-    async function apiLoadRecord(hainyuId) {
-      const res = await fetch(`/api/hainyu/${encodeURIComponent(hainyuId)}`);
+    // ===== API =====
+    async function apiLoadRecord(id) {
+      const res = await fetch(`/api/hainyu/${encodeURIComponent(id)}`);
       if (res.status === 404) return null;
-      if (!res.ok) throw new Error("サーバーエラー");
+      if (!res.ok) throw new Error("load failed");
       return await res.json();
     }
 
-    async function apiSaveRecord(hainyuId, record) {
-      const res = await fetch(`/api/hainyu/${encodeURIComponent(hainyuId)}`, {
+    async function apiSaveRecord(id, record) {
+      const res = await fetch(`/api/hainyu/${encodeURIComponent(id)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(record),
+        body: JSON.stringify(record)
       });
-      if (!res.ok) throw new Error("保存に失敗しました");
-      return await res.json();
+      if (!res.ok) throw new Error("save failed");
     }
 
-    // ===== 明細関係 =====
-    function updateTotals() {
-      let totalM3 = 0;
-      let totalWeight = 0;
+    // ===== 荷姿チップ =====
+    window.setPkg = function (val) {
+      const el = document.getElementById("pkgInput");
+      el.value = val;
+      markDirty();
+      triggerHaptic('selection');
+    };
 
-      items.forEach((it) => {
-        const m3 = Number(it.m3) || 0;
-        const qty = Number(it.qty) || 0;
-        const w = Number(it.weightKg) || 0;
-        totalM3 += m3;
-        totalWeight += qty * w;
-      });
-
-      document.getElementById("totalM3").textContent = totalM3.toFixed(3);
-      document.getElementById("totalWeight").textContent = totalWeight.toFixed(1);
-    }
-
+    // ===== 行フォーム クリア（編集モード解除含む） =====
     function clearRowForm() {
       currentIndex = null;
-      document.getElementById("rowIndicator").textContent = "新規明細";
+
+      const rowInd = document.getElementById("rowIndicator");
+      rowInd.textContent = "新規入力モード";
+      rowInd.classList.remove("editing-label");
+
+      const section = document.getElementById("inputSection");
+      section.classList.remove("editing-mode");
+
+      const addBtn = document.getElementById("stickyAddBtn");
+      addBtn.innerHTML = "＋ 追加";
 
       document.getElementById("pkgInput").value = "";
       document.getElementById("noFromInput").value = "";
@@ -369,26 +286,49 @@
       document.getElementById("widInput").value = "";
       document.getElementById("heiInput").value = "";
       document.getElementById("weightInput").value = "";
-      document.getElementById("m3Input").value = "";
+      document.getElementById("m3Display").textContent = "0.000";
+
+      // カード側のハイライトも消す
+      renderRowsList();
     }
 
-    function fillRowFormFromItem(index) {
+    // ===== 編集モードへ =====
+    window.fillRowForm = function (index) {
       const it = items[index];
+      if (!it) return;
       currentIndex = index;
-      document.getElementById("rowIndicator").textContent = `明細 ${index + 1} を編集中`;
+
+      const rowInd = document.getElementById("rowIndicator");
+      rowInd.textContent = `No.${index + 1} を編集中`;
+      rowInd.classList.add("editing-label");
+
+      const section = document.getElementById("inputSection");
+      section.classList.add("editing-mode");
+
+      const addBtn = document.getElementById("stickyAddBtn");
+      addBtn.innerHTML = "✔ 更新";
 
       document.getElementById("pkgInput").value = it.packageType || "";
-      document.getElementById("noFromInput").value = it.noFrom ?? "";
-      document.getElementById("noToInput").value = it.noTo ?? "";
-      document.getElementById("qtyInput").value = it.qty ?? "";
-      document.getElementById("lenInput").value = it.L ?? "";
-      document.getElementById("widInput").value = it.W ?? "";
-      document.getElementById("heiInput").value = it.H ?? "";
-      document.getElementById("weightInput").value = it.weightKg ?? "";
-      document.getElementById("m3Input").value =
-        it.m3 != null ? Number(it.m3).toFixed(3) : "";
-    }
+      document.getElementById("noFromInput").value = (it.noFrom ?? "");
+      document.getElementById("noToInput").value = (it.noTo ?? "");
+      document.getElementById("qtyInput").value = (it.qty ?? "");
+      document.getElementById("lenInput").value = (it.L ?? "");
+      document.getElementById("widInput").value = (it.W ?? "");
+      document.getElementById("heiInput").value = (it.H ?? "");
+      document.getElementById("weightInput").value = (it.weightKg ?? "");
+      document.getElementById("m3Display").textContent = (it.m3 ?? 0).toFixed(3);
 
+      // 編集対象カードをハイライト
+      renderRowsList();
+
+      // 入力エリアへスクロール
+      const sectionRect = section.getBoundingClientRect();
+      const y = sectionRect.top + window.scrollY - 60;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+      triggerHaptic('selection');
+    };
+
+    // ===== 行フォーム収集 =====
     function collectRowForm() {
       const pkg = document.getElementById("pkgInput").value.trim();
       const noFrom = document.getElementById("noFromInput").value;
@@ -398,11 +338,8 @@
       const W = document.getElementById("widInput").value;
       const H = document.getElementById("heiInput").value;
       const weight = document.getElementById("weightInput").value;
-      const m3 = document.getElementById("m3Input").value;
 
-      if (!pkg && !noFrom && !noTo && !qty && !L && !W && !H && !weight) {
-        return null;
-      }
+      if (!pkg && !noFrom && !noTo && !qty && !L && !W && !H && !weight) return null;
 
       return {
         packageType: pkg,
@@ -413,585 +350,317 @@
         W: W !== "" ? Number(W) : null,
         H: H !== "" ? Number(H) : null,
         weightKg: weight !== "" ? Number(weight) : null,
-        m3: m3 !== "" ? Number(m3) : 0,
+        m3: calcM3(qty, L, W, H)
       };
     }
 
+    // ===== 行リスト描画 =====
     function renderRowsList() {
       const container = document.getElementById("rowsList");
       container.innerHTML = "";
-
       if (!items.length) {
-        container.innerHTML = `<div class="table-note">まだ明細がありません。</div>`;
+        container.innerHTML = `<div style="text-align:center; color:#475569; padding:20px;">明細なし</div>`;
         return;
       }
 
-      const table = document.createElement("table");
-      table.className = "search-table";
-      table.innerHTML = `
-        <thead>
-          <tr>
-            <th style="width:36px;">#</th>
-            <th>荷姿</th>
-            <th>№</th>
-            <th>個数</th>
-            <th>L×W×H (cm)</th>
-            <th>重量</th>
-            <th>M3</th>
-            <th style="width:90px;">操作</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      `;
-      const tbody = table.querySelector("tbody");
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const originalIndex = i;
+        const totalW = (Number(it.qty) || 0) * (Number(it.weightKg) || 0);
 
-      items.forEach((it, idx) => {
-        const tr = document.createElement("tr");
-        const lineWeight =
-          (Number(it.qty) || 0) * (Number(it.weightKg) || 0);
+        const card = document.createElement("div");
+        card.className = "card-item";
 
-        tr.innerHTML = `
-          <td class="td-center">${idx + 1}</td>
-          <td class="text-left">${it.packageType || ""}</td>
-          <td class="td-center">${
-            it.noFrom != null ? it.noFrom : ""
-          }〜${it.noTo != null ? it.noTo : ""}</td>
-          <td class="td-center">${it.qty ?? ""}</td>
-          <td class="td-center">${it.L ?? ""}×${it.W ?? ""}×${it.H ?? ""}</td>
-          <td class="td-right">
-            ${(it.weightKg ?? "")} kg/個
-            <br><span style="font-size:11px; color:var(--text-sub);">合計 ${lineWeight.toFixed(1)} kg</span>
-          </td>
-          <td class="td-right">${it.m3 != null ? Number(it.m3).toFixed(3) : ""}</td>
-          <td class="td-center">
-            <button class="btn-secondary btn-small" data-action="edit">編集</button>
-            <button class="btn-danger btn-small" data-action="delete">削除</button>
-          </td>
+        // 編集中行のハイライト
+        if (originalIndex === currentIndex) {
+          card.classList.add("card-editing");
+        }
+
+        card.innerHTML = `
+          <div class="card-header">
+            <span style="color:#38bdf8; font-weight:bold;">#${originalIndex + 1}</span>
+            <span style="font-size:14px; margin-left:8px; color:#cbd5e1;">${it.packageType || "-"}</span>
+          </div>
+          <div class="card-grid">
+            <div>
+              <div class="input-label">個数</div>
+              <div class="card-val">${it.qty ?? "-"}</div>
+            </div>
+            <div>
+              <div class="input-label">No.</div>
+              <div class="card-val">
+                ${(it.noFrom ?? "") + (it.noTo ? "~" + it.noTo : "")}
+              </div>
+            </div>
+            <div>
+              <div class="input-label">サイズ</div>
+              <div class="card-val">${it.L || 0}×${it.W || 0}×${it.H || 0}</div>
+            </div>
+            <div>
+              <div class="input-label">単重</div>
+              <div class="card-val">${it.weightKg || 0}</div>
+            </div>
+            <div>
+              <div class="input-label">行重量</div>
+              <div class="card-val">${totalW.toFixed(1)}</div>
+            </div>
+            <div>
+              <div class="input-label">M3</div>
+              <div class="card-val" style="color:#38bdf8;">
+                ${(it.m3 ?? 0).toFixed(3)}
+              </div>
+            </div>
+          </div>
         `;
 
-        tr.querySelectorAll("button").forEach((btn) => {
-          const action = btn.getAttribute("data-action");
-          if (action === "edit") {
-            btn.addEventListener("click", () => {
-              fillRowFormFromItem(idx);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            });
-          } else if (action === "delete") {
-            btn.addEventListener("click", () => {
-              items.splice(idx, 1);
-              markDirty();
-              renderRowsList();
-              updateTotals();
-              clearRowForm();
-            });
-          }
-        });
+        const editBtn = document.createElement("button");
+        editBtn.className = "card-edit-btn";
+        editBtn.textContent = "編集";
+        editBtn.onclick = () => fillRowForm(originalIndex);
+        card.appendChild(editBtn);
 
-        tbody.appendChild(tr);
-      });
-
-      container.appendChild(table);
-    }
-
-    function updateQtyFromNos() {
-      const noFromEl = document.getElementById("noFromInput");
-      const noToEl = document.getElementById("noToInput");
-      const qtyEl = document.getElementById("qtyInput");
-
-      const from = parseInt(noFromEl.value, 10);
-      const to = parseInt(noToEl.value, 10);
-      let q = qtyEl.value ? Number(qtyEl.value) : 0;
-
-      if (!isNaN(from) && !isNaN(to)) {
-        if (to >= from) {
-          q = to - from + 1;
-        } else {
-          q = 0;
-        }
-      } else if (!isNaN(from) || !isNaN(to)) {
-        q = 1;
-      } else {
-        return;
-      }
-      qtyEl.value = q || "";
-    }
-
-    function updateRowM3Field() {
-      const qty = document.getElementById("qtyInput").value;
-      const L = document.getElementById("lenInput").value;
-      const W = document.getElementById("widInput").value;
-      const H = document.getElementById("heiInput").value;
-      const m3El = document.getElementById("m3Input");
-
-      if (!qty && !L && !W && !H) {
-        m3El.value = "";
-        return;
-      }
-      const m3 = calcM3(qty, L, W, H);
-      m3El.value = m3.toFixed(3);
-    }
-
-    // ===== ヘッダー情報 =====
-    function renderHeader(header) {
-      const dateInput = document.getElementById("dateInput");
-      const shipperInput = document.getElementById("shipperInput");
-      const destInput = document.getElementById("destInput");
-      const itemNameInput = document.getElementById("itemNameInput");
-      const markInput = document.getElementById("markInput");
-
-      if (header) {
-        dateInput.value = header.date || todayString();
-        shipperInput.value = header.shipper || "";
-        destInput.value = header.dest || "";
-        itemNameInput.value = header.itemName || "";
-        markInput.value = header.mark || "";
-      } else {
-        dateInput.value = todayString();
-        shipperInput.value = "";
-        destInput.value = "";
-        itemNameInput.value = "";
-        markInput.value = "";
-      }
-    }
-
-    function collectHeader() {
-      const dateInput = document.getElementById("dateInput");
-      const shipperInput = document.getElementById("shipperInput");
-      const destInput = document.getElementById("destInput");
-      const itemNameInput = document.getElementById("itemNameInput");
-      const markInput = document.getElementById("markInput");
-
-      return {
-        date: dateInput.value || null,
-        shipper: shipperInput.value.trim() || "",
-        dest: destInput.value.trim() || "",
-        itemName: itemNameInput.value.trim() || "",
-        mark: markInput.value,
-      };
-    }
-
-    // ===== OCR 用トリミング UI =====
-    let cropOverlay, cropCanvas, cropCtx;
-    let cropImage = null;
-    let cropScale = 1;  // image.width * scale = canvas.width
-    let isDrawingCrop = false;
-    let cropStartX = 0;
-    let cropStartY = 0;
-    let cropCurrentX = 0;
-    let cropCurrentY = 0;
-    let cropRect = null; // {x,y,w,h} in canvas coords
-
-    function openCropper(dataUrl) {
-      cropOverlay = document.getElementById("cropOverlay");
-      cropCanvas = document.getElementById("cropCanvas");
-      cropCtx = cropCanvas.getContext("2d");
-
-      cropOverlay.style.display = "flex";
-      cropRect = null;
-
-      cropImage = new Image();
-      cropImage.onload = () => {
-        const maxCanvasWidth = Math.min(window.innerWidth - 60, 600);
-        const maxCanvasHeight = Math.min(window.innerHeight * 0.6, 400);
-        const scale = Math.min(
-          maxCanvasWidth / cropImage.width,
-          maxCanvasHeight / cropImage.height
-        );
-
-        const drawWidth = cropImage.width * scale;
-        const drawHeight = cropImage.height * scale;
-
-        cropCanvas.width = drawWidth;
-        cropCanvas.height = drawHeight;
-        cropScale = scale;
-
-        drawCropCanvas();
-      };
-      cropImage.src = dataUrl;
-    }
-
-    function drawCropCanvas() {
-      if (!cropCtx || !cropImage) return;
-      cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
-      cropCtx.drawImage(cropImage, 0, 0, cropCanvas.width, cropCanvas.height);
-
-      if (isDrawingCrop || cropRect) {
-        const x = isDrawingCrop ? Math.min(cropStartX, cropCurrentX) : cropRect.x;
-        const y = isDrawingCrop ? Math.min(cropStartY, cropCurrentY) : cropRect.y;
-        const w = isDrawingCrop
-          ? Math.abs(cropCurrentX - cropStartX)
-          : cropRect.w;
-        const h = isDrawingCrop
-          ? Math.abs(cropCurrentY - cropStartY)
-          : cropRect.h;
-
-        if (w > 0 && h > 0) {
-          cropCtx.save();
-          cropCtx.strokeStyle = "rgba(37, 99, 235, 1)";
-          cropCtx.lineWidth = 2;
-          cropCtx.strokeRect(x, y, w, h);
-          cropCtx.fillStyle = "rgba(37, 99, 235, 0.18)";
-          cropCtx.fillRect(x, y, w, h);
-          cropCtx.restore();
-        }
-      }
-    }
-
-    function pointerPosFromEvent(e, canvas) {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
-      const clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
-      return {
-        x: (clientX - rect.left) * scaleX,
-        y: (clientY - rect.top) * scaleY,
-      };
-    }
-
-    async function runOcrOnCroppedCanvas() {
-      const markInput = document.getElementById("markInput");
-      if (!cropRect || !cropImage) {
-        setStatus("トリミング範囲が選択されていません。", "warn");
-        return;
-      }
-
-      // キャンバス座標 → 元画像座標へ変換
-      const sx = cropRect.x / cropScale;
-      const sy = cropRect.y / cropScale;
-      const sw = cropRect.w / cropScale;
-      const sh = cropRect.h / cropScale;
-
-      if (sw < 10 || sh < 10) {
-        setStatus("トリミング範囲が小さすぎます。もう一度選択してください。", "warn");
-        return;
-      }
-
-      const off = document.createElement("canvas");
-      off.width = sw;
-      off.height = sh;
-      const offCtx = off.getContext("2d");
-      offCtx.drawImage(cropImage, sx, sy, sw, sh, 0, 0, sw, sh);
-
-      try {
-        setStatus("画像から文字を読み取り中です…", "");
-        // 英数字と一部記号のみを対象に OCR
-        const result = await Tesseract.recognize(off, "eng", {
-          logger: (m) => console.log(m),
-          tessedit_char_whitelist:
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_/ .:",
-        });
-
-        let text = (result.data && result.data.text) ? result.data.text : "";
-        // 念のため、英数字と記号以外は削除（日本語などを落とす）
-        text = text.replace(/[^A-Za-z0-9\-_/ .:\n\r]/g, "");
-        text = text.trim();
-                // 小文字を含んでいてもすべて大文字に統一
-        text = text.toUpperCase();
-
-        if (!text) {
-          setStatus("英数字として読み取れる文字がありませんでした。", "warn");
-          return;
-        }
-
-        if (markInput.value) {
-          markInput.value = markInput.value.replace(/\s*$/, "") + "\n" + text;
-        } else {
-          markInput.value = text;
-        }
-
-        markDirty();
-        setStatus("トリミングした範囲から英数字のみを読み取りました。", "ok");
-      } catch (err) {
-        console.error(err);
-        setStatus("OCR中にエラーが発生しました。", "warn");
+        container.appendChild(card);
       }
     }
 
     // ===== 初期化 =====
     window.addEventListener("DOMContentLoaded", () => {
-      const hainyuInput = document.getElementById("hainyuId");
-      const loadBtn = document.getElementById("loadBtn");
-      const saveBtn = document.getElementById("saveBtn");
-      const toggleHelpBtn = document.getElementById("toggleHelpBtn");
-      const helpPanel = document.getElementById("helpPanel");
+      document.getElementById("dateInput").value = todayString();
+      updateHeaderStatus();
 
-      const dateInput = document.getElementById("dateInput");
-      const shipperInput = document.getElementById("shipperInput");
-      const destInput = document.getElementById("destInput");
-      const itemNameInput = document.getElementById("itemNameInput");
-      const markInput = document.getElementById("markInput");
-      const markOcrBtn = document.getElementById("markOcrBtn");
-      const markOcrFile = document.getElementById("markOcrFile");
-
-      // トリミング用要素
-      cropOverlay = document.getElementById("cropOverlay");
-      cropCanvas = document.getElementById("cropCanvas");
-      cropCtx = cropCanvas.getContext("2d");
-      const cropCancelBtn = document.getElementById("cropCancelBtn");
-      const cropOkBtn = document.getElementById("cropOkBtn");
-
-      // 初期値
-      dateInput.value = todayString();
-      renderHeader(null);
-      items = [];
-      renderRowsList();
-      updateTotals();
-      updateEditingIndicator();
-
-      // ヘルプ開閉
-      toggleHelpBtn.addEventListener("click", () => {
-        const visible = helpPanel.style.display !== "none";
-        helpPanel.style.display = visible ? "none" : "block";
-        toggleHelpBtn.textContent = visible ? "？ ヘルプ" : "× 閉じる";
-      });
-
-      // ヘッダーフィールド変更で dirty
-      [dateInput, shipperInput, destInput, itemNameInput, markInput].forEach(
-        (el) => {
-          el.addEventListener("input", markDirty);
-        }
-      );
-
-      // マーク用 OCR：ボタン → カメラ起動
-      markOcrBtn.addEventListener("click", () => {
-        markOcrFile.click();
-      });
-
-      // ファイル選択後：トリミング UI を開く
-      markOcrFile.addEventListener("change", (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          openCropper(ev.target.result);
-        };
-        reader.readAsDataURL(file);
-
-        // 同じファイルを再度選べるようにリセット
-        markOcrFile.value = "";
-      });
-
-      // トリミングキャンセル
-      cropCancelBtn.addEventListener("click", () => {
-        cropOverlay.style.display = "none";
-        cropImage = null;
-        cropRect = null;
-      });
-
-      // トリミング確定 → OCR
-      cropOkBtn.addEventListener("click", async () => {
-        cropOverlay.style.display = "none";
-        await runOcrOnCroppedCanvas();
-        cropImage = null;
-        cropRect = null;
-      });
-
-      // トリミング用キャンバスのドラッグ操作（pointer イベント）
-      cropCanvas.addEventListener("pointerdown", (e) => {
-        if (!cropCanvas) return;
-        e.preventDefault();
-        cropCanvas.setPointerCapture(e.pointerId);
-        const pos = pointerPosFromEvent(e, cropCanvas);
-        isDrawingCrop = true;
-        cropStartX = cropCurrentX = pos.x;
-        cropStartY = cropCurrentY = pos.y;
-        cropRect = null;
-        drawCropCanvas();
-      });
-
-      cropCanvas.addEventListener("pointermove", (e) => {
-        if (!isDrawingCrop) return;
-        const pos = pointerPosFromEvent(e, cropCanvas);
-        cropCurrentX = pos.x;
-        cropCurrentY = pos.y;
-        drawCropCanvas();
-      });
-
-      function finishCrop(e) {
-        if (!isDrawingCrop) return;
-        const pos = pointerPosFromEvent(e, cropCanvas);
-        cropCurrentX = pos.x;
-        cropCurrentY = pos.y;
-        isDrawingCrop = false;
-
-        const x = Math.min(cropStartX, cropCurrentX);
-        const y = Math.min(cropStartY, cropCurrentY);
-        const w = Math.abs(cropCurrentX - cropStartX);
-        const h = Math.abs(cropCurrentY - cropStartY);
-
-        if (w > 10 && h > 10) {
-          cropRect = { x, y, w, h };
-        } else {
-          cropRect = null;
-        }
-        drawCropCanvas();
-      }
-
-      cropCanvas.addEventListener("pointerup", finishCrop);
-      cropCanvas.addEventListener("pointercancel", finishCrop);
-      cropCanvas.addEventListener("pointerleave", (e) => {
-        // 画面外に出ても一旦確定させる
-        if (isDrawingCrop) finishCrop(e);
-      });
-
-      // 搬入データ読み込み
-      async function doLoad(id) {
-        if (!id) {
-          setStatus("まず搬入番号を入力してください。", "warn");
-          return;
-        }
-        setStatus("読み込み中です...", "");
-        try {
-          const record = await apiLoadRecord(id);
-          if (record) {
-            renderHeader(record.header || null);
-            items = record.items || [];
-            setStatus(`搬入番号「${id}」のデータを読み込みました。`, "ok");
-          } else {
-            renderHeader(null);
-            items = [];
-            setStatus(
-              `搬入番号「${id}」のデータはありません。新規入力として保存できます。`,
-              "ok"
-            );
+      // 入力イベント → 未保存状態＆M3計算
+      document.querySelectorAll("input, textarea").forEach(el => {
+        el.addEventListener("input", () => {
+          markDirty();
+          if (["qtyInput", "lenInput", "widInput", "heiInput"].includes(el.id)) {
+            const q = document.getElementById("qtyInput").value;
+            const l = document.getElementById("lenInput").value;
+            const w = document.getElementById("widInput").value;
+            const h = document.getElementById("heiInput").value;
+            document.getElementById("m3Display").textContent = calcM3(q, l, w, h).toFixed(3);
           }
-          renderRowsList();
-          updateTotals();
-          clearRowForm();
+        });
+      });
+
+      // No. → 個数自動
+      const calcQ = () => {
+        const f = parseInt(document.getElementById("noFromInput").value);
+        const t = parseInt(document.getElementById("noToInput").value);
+        const qEl = document.getElementById("qtyInput");
+        if (!isNaN(f) && !isNaN(t) && t >= f) qEl.value = t - f + 1;
+        else if (!isNaN(f) || !isNaN(t)) qEl.value = 1;
+        qEl.dispatchEvent(new Event('input'));
+      };
+      document.getElementById("noFromInput").addEventListener("input", calcQ);
+      document.getElementById("noToInput").addEventListener("input", calcQ);
+
+      // 読込ボタン
+      document.getElementById("loadBtn").addEventListener("click", async () => {
+        const id = document.getElementById("hainyuId").value.trim();
+        if (!id) return showToast("番号を入力してください", "warn");
+        showToast("読込中...");
+        try {
+          const r = await apiLoadRecord(id);
+          const dateInput = document.getElementById("dateInput");
+          const shipperInput = document.getElementById("shipperInput");
+          const destInput = document.getElementById("destInput");
+          const itemNameInput = document.getElementById("itemNameInput");
+          const markInput = document.getElementById("markInput");
+
+          if (r) {
+            items = r.items || [];
+            const h = r.header || {};
+            dateInput.value = h.date || todayString();
+            shipperInput.value = h.shipper || "";
+            destInput.value = h.dest || "";
+            itemNameInput.value = h.itemName || "";
+            markInput.value = h.mark || "";
+            showToast("読込完了");
+          } else {
+            // 新規として開始
+            items = [];
+            dateInput.value = todayString();
+            shipperInput.value = "";
+            destInput.value = "";
+            itemNameInput.value = "";
+            markInput.value = "";
+            showToast("新規として開始します");
+          }
           currentHainyuId = id;
           isDirty = false;
-          updateEditingIndicator();
-          saveBtn.disabled = false;
+          clearRowForm();
+          updateHeaderStatus();
+          renderRowsList();
+          triggerHaptic('success');
         } catch (e) {
           console.error(e);
-          setStatus("データ読込中にエラーが発生しました。", "warn");
-        }
-      }
-
-      loadBtn.addEventListener("click", () => {
-        const id = hainyuInput.value.trim();
-        doLoad(id);
-      });
-
-      // Enterで読込
-      hainyuInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          const id = hainyuInput.value.trim();
-          doLoad(id);
+          showToast("エラーが発生しました", "warn");
         }
       });
 
-      // フォーカスアウトでも読込（別番号に変えた時）
-      hainyuInput.addEventListener("change", () => {
-        const id = hainyuInput.value.trim();
-        if (!id) return;
-        if (currentHainyuId === id && isDirty) return;
-        doLoad(id);
-      });
-
-      // 明細フォーム
-      const pkgInput = document.getElementById("pkgInput");
-      const noFromInput = document.getElementById("noFromInput");
-      const noToInput = document.getElementById("noToInput");
-      const qtyInput = document.getElementById("qtyInput");
-      const lenInput = document.getElementById("lenInput");
-      const widInput = document.getElementById("widInput");
-      const heiInput = document.getElementById("heiInput");
-      const weightInput = document.getElementById("weightInput");
-
-      [pkgInput, noFromInput, noToInput, qtyInput, lenInput, widInput, heiInput, weightInput]
-        .forEach((el) => {
-          el.addEventListener("input", markDirty);
-        });
-
-      noFromInput.addEventListener("input", () => {
-        updateQtyFromNos();
-        updateRowM3Field();
-      });
-      noToInput.addEventListener("input", () => {
-        updateQtyFromNos();
-        updateRowM3Field();
-      });
-      qtyInput.addEventListener("input", () => {
-        updateRowM3Field();
-      });
-      lenInput.addEventListener("input", updateRowM3Field);
-      widInput.addEventListener("input", updateRowM3Field);
-      heiInput.addEventListener("input", updateRowM3Field);
-
-      // 明細クリア
-      document.getElementById("rowClearBtn").addEventListener("click", () => {
-        clearRowForm();
-      });
-
-      // 明細追加/更新
-      document.getElementById("rowSaveBtn").addEventListener("click", () => {
+      // 追加／更新
+      document.getElementById("stickyAddBtn").addEventListener("click", () => {
         const row = collectRowForm();
-        if (!row) {
-          setStatus("明細に何も入力されていません。", "warn");
-          return;
-        }
+        if (!row) return showToast("値を入力してください", "warn");
 
         if (currentIndex === null) {
           items.push(row);
-          setStatus("明細を追加しました。", "ok");
+          showToast("追加しました");
         } else {
           items[currentIndex] = row;
-          setStatus(`明細 ${currentIndex + 1} を更新しました。`, "ok");
+          showToast("更新しました");
         }
-
+        triggerHaptic('success');
         markDirty();
         renderRowsList();
-        updateTotals();
         clearRowForm();
+
+        window.scrollTo({ top: document.getElementById("inputSection").offsetTop - 60, behavior: 'smooth' });
+      });
+
+      // クリア
+      document.getElementById("stickyClearBtn").addEventListener("click", () => {
+        clearRowForm();
+        triggerHaptic('selection');
       });
 
       // 保存
-      saveBtn.addEventListener("click", async () => {
-        const id = hainyuInput.value.trim();
-        if (!id) {
-          setStatus("搬入番号を入力してください。", "warn");
-          return;
-        }
-        if (!items.length) {
-          setStatus("保存する明細がありません。1件以上入力してください。", "warn");
-          return;
-        }
-
-        const header = collectHeader();
-        if (!header.date) header.date = todayString();
-
-        setStatus("保存中です...", "");
+      document.getElementById("stickySaveBtn").addEventListener("click", async () => {
+        const id = document.getElementById("hainyuId").value.trim();
+        if (!id) return;
+        const header = {
+          date: document.getElementById("dateInput").value,
+          shipper: document.getElementById("shipperInput").value.trim(),
+          dest: document.getElementById("destInput").value.trim(),
+          itemName: document.getElementById("itemNameInput").value.trim(),
+          mark: document.getElementById("markInput").value
+        };
+        showToast("保存中...");
         try {
           await apiSaveRecord(id, { header, items });
-          currentHainyuId = id;
           isDirty = false;
-          updateEditingIndicator();
-          setStatus(`搬入番号「${id}」のデータを保存しました。`, "ok");
+          updateHeaderStatus();
+          showToast("保存しました！");
+          triggerHaptic('success');
         } catch (e) {
           console.error(e);
-          setStatus("保存中にエラーが発生しました。", "warn");
+          showToast("保存失敗", "warn");
         }
       });
 
-      // URL に ?id=XXXX があれば自動読込
-      const params = new URLSearchParams(window.location.search);
-      const initialId = params.get("id");
-      if (initialId) {
-        hainyuInput.value = initialId;
-        doLoad(initialId);
-      }
-
-      // 未保存で離脱する時の警告
+      // 未保存で離脱しようとしたら警告
       window.addEventListener("beforeunload", (e) => {
         if (!isDirty) return;
         e.preventDefault();
         e.returnValue = "";
       });
+
+      // OCR初期化
+      setupOcr();
     });
+
+    // ===== OCR（トリミング → Tesseract） =====
+    function setupOcr() {
+      const fileIn = document.getElementById("markOcrFile");
+      const canvas = document.getElementById("cropCanvas");
+      const ctx = canvas.getContext("2d");
+      let imgObj = null, startX, startY, curX, curY, isDrag = false, cropRect = null;
+
+      document.getElementById("markOcrBtn").addEventListener("click", () => fileIn.click());
+
+      fileIn.addEventListener("change", e => {
+        if (!e.target.files[0]) return;
+        const r = new FileReader();
+        r.onload = ev => {
+          imgObj = new Image();
+          imgObj.onload = () => {
+            document.getElementById("cropOverlay").style.display = "flex";
+            const maxW = window.innerWidth - 40;
+            const scale = maxW / imgObj.width;
+            canvas.width = maxW;
+            canvas.height = imgObj.height * scale;
+            ctx.drawImage(imgObj, 0, 0, canvas.width, canvas.height);
+            cropRect = null;
+          };
+          imgObj.src = ev.target.result;
+        };
+        r.readAsDataURL(e.target.files[0]);
+        fileIn.value = "";
+      });
+
+      // タッチで範囲指定
+      canvas.addEventListener("touchstart", e => {
+        e.preventDefault();
+        const r = canvas.getBoundingClientRect();
+        startX = e.touches[0].clientX - r.left;
+        startY = e.touches[0].clientY - r.top;
+        isDrag = true;
+      });
+
+      canvas.addEventListener("touchmove", e => {
+        if (!isDrag) return;
+        const r = canvas.getBoundingClientRect();
+        curX = e.touches[0].clientX - r.left;
+        curY = e.touches[0].clientY - r.top;
+        ctx.drawImage(imgObj, 0, 0, canvas.width, canvas.height);
+        const w = curX - startX, h = curY - startY;
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(startX, startY, w, h);
+        ctx.fillStyle = "rgba(56,189,248,0.3)";
+        ctx.fillRect(startX, startY, w, h);
+      });
+
+      canvas.addEventListener("touchend", () => {
+        isDrag = false;
+        const w = curX - startX, h = curY - startY;
+        if (Math.abs(w) > 10 && Math.abs(h) > 10) cropRect = { x: startX, y: startY, w, h };
+      });
+
+      document.getElementById("cropCancelBtn").addEventListener("click", () => {
+        document.getElementById("cropOverlay").style.display = "none";
+      });
+
+      document.getElementById("cropOkBtn").addEventListener("click", async () => {
+        if (!cropRect) return showToast("範囲選択してください", "warn");
+        document.getElementById("cropOverlay").style.display = "none";
+        showToast("解析中...");
+
+        const scale = imgObj.width / canvas.width;
+        const hc = document.createElement("canvas");
+        hc.width = Math.abs(cropRect.w * scale);
+        hc.height = Math.abs(cropRect.h * scale);
+        const hctx = hc.getContext("2d");
+        hctx.drawImage(
+          imgObj,
+          Math.min(cropRect.x, cropRect.x + cropRect.w) * scale,
+          Math.min(cropRect.y, cropRect.y + cropRect.h) * scale,
+          hc.width,
+          hc.height,
+          0,
+          0,
+          hc.width,
+          hc.height
+        );
+
+        try {
+          const res = await Tesseract.recognize(
+            hc,
+            'eng',
+            { tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-./ " }
+          );
+          const txt = res.data.text.replace(/[^A-Z0-9\-\.\/ \n]/g, "").trim();
+          const el = document.getElementById("markInput");
+          el.value = (el.value ? el.value + "\n" : "") + txt;
+          markDirty();
+          showToast("完了");
+          triggerHaptic('success');
+        } catch (e) {
+          console.error(e);
+          showToast("解析エラー", "warn");
+        }
+      });
+    }
   </script>
 </body>
 </html>
