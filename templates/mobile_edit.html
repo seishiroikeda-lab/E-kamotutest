@@ -736,8 +736,16 @@
             destInput.value = h.dest || "";
             itemNameInput.value = h.itemName || "";
             markInput.value = h.mark || "";
-            markImages = r.images || r.mark_images || [];
+
+            // ★ ここを修正：APIは header.markImage で1つ返してくる
+            if (h.markImage) {
+              // app.py では "mark_images/xxx.jpg" を返しているので /static を付ける
+              markImages = [`/static/${h.markImage}`];
+            } else {
+              markImages = [];
+            }
             renderMarkImages(markImages);
+
             showToast("読込完了");
           } else {
             items = [];
@@ -853,8 +861,9 @@
               showToast("画像の保存に失敗しました（OCRは続行します）", "warn");
             } else {
               const data = await res.json();
-              if (data.image_url) {
-                markImages.push(data.image_url);
+              // ★ ここを修正：app.py 側は imageUrl（キャメルケース）で返す
+              if (data.imageUrl) {
+                markImages.push(data.imageUrl);
                 renderMarkImages(markImages); // 撮った瞬間に反映
               }
             }
