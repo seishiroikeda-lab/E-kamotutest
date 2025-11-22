@@ -144,27 +144,6 @@
       font-family: monospace;
     }
 
-    /* マーク画像のサムネイル表示 */
-    .mark-images {
-      margin-top: 8px;
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
-    .mark-images::-webkit-scrollbar {
-      display: none;
-    }
-    .mark-images img {
-      height: 64px;
-      border-radius: 8px;
-      border: 1px solid #475569;
-      object-fit: cover;
-      background: #020617;
-    }
-
     /* 固定フッター */
     .sticky-footer {
       position: fixed;
@@ -265,6 +244,32 @@
     .status-bar.show { transform: translateY(0); }
     .status-ok { background: #22c55e; color: #fff; }
     .status-warn { background: #f59e0b; color: #000; }
+
+    /* マーク写真一覧 */
+    .mark-images-section {
+      margin-top: 10px;
+    }
+    .mark-images-scroll {
+      margin-top: 4px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .mark-images-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    .mark-thumb {
+      width: 80px;
+      height: 80px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid #475569;
+      flex: 0 0 auto;
+      background: #020617;
+    }
   </style>
 </head>
 <body>
@@ -320,9 +325,12 @@
           <input type="file" id="markOcrFile" accept="image/*" capture="environment" style="display:none;">
         </div>
         <textarea id="markInput" class="mobile-input" style="min-height:60px; font-family:monospace; font-size:14px;"></textarea>
+      </div>
 
-        <!-- ここに撮ったマーク写真のサムネイルを出す -->
-        <div id="markImages" class="mark-images"></div>
+      <!-- マーク写真一覧（サムネ） -->
+      <div id="markImagesSection" class="mark-images-section" style="display:none;">
+        <span class="input-label">マーク写真</span>
+        <div id="markImagesList" class="mark-images-scroll"></div>
       </div>
     </div>
 
@@ -440,6 +448,7 @@
     let isDirty = false;
     let items = [];
     let currentIndex = null;
+    let markImages = [];  // ← マーク写真のURL一覧
 
     function todayString() {
       const d = new Date();
@@ -488,7 +497,7 @@
         saveBtn.style.display = "none";
       } else {
         addBtn.textContent = "＋ 追加";
-        saveBtn.style.display = "flex"; // 元のflexレイアウトに戻す
+        saveBtn.style.display = "flex";
       }
     }
 
@@ -497,32 +506,36 @@
       const section = document.getElementById("inputSection");
       const indicator = document.getElementById("rowIndicator");
       if (isEditing) {
-        section.style.borderColor = "#f97316";            // オレンジ
+        section.style.borderColor = "#f97316";
         section.style.boxShadow = "0 0 0 1px #f97316";
         indicator.style.color = "#fed7aa";
       } else {
-        section.style.borderColor = "#475569";            // 元の色
+        section.style.borderColor = "#475569";
         section.style.boxShadow = "none";
         indicator.style.color = "#38bdf8";
       }
     }
 
-    // ===== マーク画像のプレビュー操作 =====
-    function appendMarkImage(url) {
-      const box = document.getElementById("markImages");
-      if (!box || !url) return;
-      const img = document.createElement("img");
-      img.src = url;
-      img.alt = "マーク写真";
-      box.appendChild(img);
-    }
+    // ===== マーク写真の描画 =====
+    function renderMarkImages(list) {
+      const section = document.getElementById("markImagesSection");
+      const wrap = document.getElementById("markImagesList");
+      if (!section || !wrap) return;
 
-    function renderMarkImages(urls) {
-      const box = document.getElementById("markImages");
-      if (!box) return;
-      box.innerHTML = "";
-      if (!urls || !urls.length) return;
-      urls.forEach(u => appendMarkImage(u));
+      wrap.innerHTML = "";
+      if (!list || list.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      list.forEach((url, idx) => {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = "マーク写真" + (idx + 1);
+        img.className = "mark-thumb";
+        wrap.appendChild(img);
+      });
     }
 
     // API関連
@@ -689,6 +702,7 @@
       updateFooterForEdit(false);
       setEditingVisual(false);
 
+      // 入力イベント監視
       document.querySelectorAll("input, textarea").forEach(el => {
         el.addEventListener("input", () => {
           markDirty();
@@ -702,6 +716,7 @@
         });
       });
 
+      // No.自動個数
       const calcQ = () => {
         const f = parseInt(document.getElementById("noFromInput").value);
         const t = parseInt(document.getElementById("noToInput").value);
@@ -713,6 +728,7 @@
       document.getElementById("noFromInput").addEventListener("input", calcQ);
       document.getElementById("noToInput").addEventListener("input", calcQ);
 
+      // 読込ボタン
       document.getElementById("loadBtn").addEventListener("click", async () => {
         const id = document.getElementById("hainyuId").value.trim();
         if(!id) return showToast("番号を入力してください", "warn");
@@ -733,9 +749,8 @@
             destInput.value = h.dest || "";
             itemNameInput.value = h.itemName || "";
             markInput.value = h.mark || "";
-            // ここで既存のマーク画像を表示（API側で images / markImages を返す前提）
-            const imgs = r.images || r.markImages || [];
-            renderMarkImages(imgs);
+            markImages = r.images || [];
+            renderMarkImages(markImages);
             showToast("読込完了");
           } else {
             items = [];
@@ -744,7 +759,8 @@
             destInput.value = "";
             itemNameInput.value = "";
             markInput.value = "";
-            renderMarkImages([]);
+            markImages = [];
+            renderMarkImages(markImages);
             showToast("新規として開始します");
           }
           currentHainyuId = id;
@@ -759,6 +775,7 @@
         }
       });
 
+      // 追加 / 上書きボタン
       document.getElementById("stickyAddBtn").addEventListener("click", () => {
         const row = collectRowForm();
         if(!row) return showToast("値を入力してください", "warn");
@@ -777,11 +794,13 @@
         window.scrollTo({ top: document.getElementById("inputSection").offsetTop - 60, behavior: 'smooth' });
       });
 
+      // クリアボタン
       document.getElementById("stickyClearBtn").addEventListener("click", () => {
         clearRowForm();
         triggerHaptic('selection');
       });
 
+      // 保存ボタン
       document.getElementById("stickySaveBtn").addEventListener("click", async () => {
         const id = document.getElementById("hainyuId").value.trim();
         if(!id) return;
@@ -796,6 +815,7 @@
         try {
           await apiSaveRecord(id, {header, items});
           isDirty = false;
+          currentHainyuId = id;
           updateHeaderStatus();
           showToast("保存しました！");
           triggerHaptic('success');
@@ -815,7 +835,7 @@
       setupOcr();
     });
 
-    // ===== OCR (Canvas Crop + 撮影と同時に画像保存 & プレビュー) =====
+    // ===== OCR (Canvas Crop + 撮影画像を即サーバ保存＆プレビュー) =====
     function setupOcr() {
       const fileIn = document.getElementById("markOcrFile");
       const canvas = document.getElementById("cropCanvas");
@@ -828,7 +848,7 @@
         const file = e.target.files[0];
         if (!file) return;
 
-        // 先にサーバーにアップロードして保存し、即サムネ表示
+        // 1) 先にサーバーへアップロードして URL を取得 → 即プレビューに反映
         const idInput = document.getElementById("hainyuId");
         const inputId = idInput ? idInput.value.trim() : "";
         const id = currentHainyuId || inputId;
@@ -850,9 +870,9 @@
               showToast("画像の保存に失敗しました（OCRは続行します）", "warn");
             } else {
               const data = await res.json();
-              // ここで即サムネ追加
               if (data.image_url) {
-                appendMarkImage(data.image_url);
+                markImages.push(data.image_url);
+                renderMarkImages(markImages); // ← 撮った瞬間に表示
               }
             }
           } catch (err) {
@@ -861,7 +881,7 @@
           }
         }
 
-        // ここからは今まで通り、クライアント側でトリミングしてOCR
+        // 2) ローカルで OCR 用キャンバスに載せる処理
         const r = new FileReader();
         r.onload = ev => {
           imgObj = new Image();
@@ -880,6 +900,7 @@
         fileIn.value="";
       });
 
+      // タッチ描画
       canvas.addEventListener("touchstart", e => {
         e.preventDefault();
         const r=canvas.getBoundingClientRect();
