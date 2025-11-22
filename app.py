@@ -87,13 +87,13 @@ def edit_page():
 
 @app.route("/mobile-edit")
 def mobile_edit_page():
-    """従来のスマホ入力画面"""
+    """スマホ入力画面"""
     return render_template("mobile_edit.html")
 
 
 @app.route("/test-mobile")
 def test_mobile_page():
-    """★ 追加: 新しいスマホ入力UIテスト画面"""
+    """新しいスマホ入力UIテスト画面（使わなければ無視でOK）"""
     return render_template("testmobile.html")
 
 
@@ -268,8 +268,8 @@ def api_save_hainyu(hainyu_id):
 
 
 # ===== API: OCR 用マーク画像アップロード =====
-# ・mobile_edit.html から呼び出される
-# ・元画像を static/mark_images/ にそのまま保存
+# ・mobile_edit.html / edit.html から呼び出される
+# ・元画像を static/mark_images/ に保存
 # ・hainyu_headers.mark_image にパスを保存
 
 @app.route("/api/hainyu/<hainyu_id>/mark_image", methods=["POST"])
@@ -458,7 +458,7 @@ def api_summary():
                 "totalQty": r["total_qty"],
                 "totalM3": float(r["total_m3"] or 0),
                 "totalWeight": float(r["total_weight"] or 0),
-                "markImage": r["mark_image"],  # ★ 一覧用に画像パスも返す
+                "markImage": r["mark_image"],  # LIST側で使わなければ無視してOK
             }
         )
 
