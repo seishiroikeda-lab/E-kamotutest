@@ -1,11 +1,16 @@
 import os
 import sqlite3
-from flask import Flask, render_template, request, jsonify, url_for
+import time
+from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASE_DIR, "hainyu.db")
+
+# マーク画像保存先ディレクトリ
+MARK_DIR = os.path.join(BASE_DIR, "static", "mark_images")
+os.makedirs(MARK_DIR, exist_ok=True)
 
 
 # ===== DB 初期化 =====
@@ -47,17 +52,11 @@ def init_db():
         """
     )
 
-    # ★ 追加: OCRで撮ったマーク画像テーブル
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS ocr_images (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            hainyu_id  TEXT NOT NULL,
-            image_path TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-        """
-    )
+    # 既存DBに mark_image カラムが無ければ追加
+    cur.execute("PRAGMA table_info(hainyu_headers)")
+    cols = [row[1] for row in cur.fetchall()]
+    if "mark_image" not in cols:
+        cur.execute("ALTER TABLE hainyu_headers ADD COLUMN mark_image TEXT")
 
     conn.commit()
     conn.close()
@@ -94,7 +93,7 @@ def mobile_edit_page():
 
 @app.route("/test-mobile")
 def test_mobile_page():
-    """★ 新しいスマホ入力UIテスト画面（testmobile.html を割り当て）"""
+    """★ 追加: 新しいスマホ入力UIテスト画面"""
     return render_template("testmobile.html")
 
 
@@ -110,7 +109,6 @@ def search_page():
 
 @app.route("/list")
 def list_page():
-    """PC版一覧画面（list.html 側で /api/summary を叩いて使う想定）"""
     return render_template("list.html")
 
 
@@ -130,7 +128,8 @@ def api_get_hainyu(hainyu_id):
             shipper,
             dest,
             item_name,
-            mark
+            mark,
+            mark_image
         FROM hainyu_headers
         WHERE hainyu_id = ?
         """,
@@ -172,6 +171,7 @@ def api_get_hainyu(hainyu_id):
         "dest": header_row["dest"],
         "itemName": header_row["item_name"],
         "mark": header_row["mark"],
+        "markImage": header_row["mark_image"],  # ★ 画像パス
     }
 
     items = []
@@ -212,7 +212,7 @@ def api_save_hainyu(hainyu_id):
     conn = get_db()
     cur = conn.cursor()
 
-    # ヘッダー upsert
+    # ヘッダー upsert（mark_image はここでは触らない）
     cur.execute(
         """
         INSERT INTO hainyu_headers (hainyu_id, date, shipper, dest, item_name, mark)
@@ -265,6 +265,60 @@ def api_save_hainyu(hainyu_id):
     conn.close()
 
     return jsonify({"status": "ok"})
+
+
+# ===== API: OCR 用マーク画像アップロード =====
+# ・mobile_edit.html から呼び出される
+# ・元画像を static/mark_images/ にそのまま保存
+# ・hainyu_headers.mark_image にパスを保存
+
+@app.route("/api/hainyu/<hainyu_id>/mark_image", methods=["POST"])
+def api_upload_mark_image(hainyu_id):
+    if "file" not in request.files:
+        return jsonify({"error": "no file"}), 400
+
+    f = request.files["file"]
+    if f.filename == "":
+        return jsonify({"error": "empty file"}), 400
+
+    # 拡張子決定
+    _, ext = os.path.splitext(f.filename)
+    ext = ext.lower() or ".jpg"
+    if ext not in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]:
+        ext = ".jpg"
+
+    # ファイル名: 搬入番号_タイムスタンプ.ext
+    filename = f"{hainyu_id}_{int(time.time())}{ext}"
+
+    # static からの相対パスと実ファイルパス
+    rel_path = os.path.join("mark_images", filename).replace("\\", "/")
+    save_path = os.path.join(MARK_DIR, filename)
+
+    # 元画像のまま保存（リサイズしない）
+    f.save(save_path)
+
+    # DB にパスを保存（ヘッダーが無い場合は空ヘッダーを作る）
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO hainyu_headers (hainyu_id, date, shipper, dest, item_name, mark, mark_image)
+        VALUES (?, '', '', '', '', '', ?)
+        ON CONFLICT(hainyu_id) DO UPDATE SET
+          mark_image = excluded.mark_image
+        """,
+        (hainyu_id, rel_path),
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify(
+        {
+            "status": "ok",
+            "imagePath": rel_path,
+            "imageUrl": f"/static/{rel_path}",
+        }
+    )
 
 
 # ===== API: 検索（キーワード検索用） =====
@@ -323,7 +377,6 @@ def api_search():
 
 
 # ===== API: 一覧 / 集計用 =====
-# ★ ここで「サムネ用画像パス」も集計に含める
 
 @app.route("/api/summary", methods=["GET"])
 def api_summary():
@@ -335,7 +388,6 @@ def api_summary():
     conn = get_db()
     cur = conn.cursor()
 
-    # ocr_images をサブクエリでまとめて、各 hainyu_id の代表サムネ画像を取得
     base_sql = """
         SELECT
             h.hainyu_id,
@@ -343,22 +395,14 @@ def api_summary():
             h.shipper,
             h.dest,
             h.item_name,
+            h.mark_image,
             COUNT(i.id)                      AS item_count,
             COALESCE(SUM(i.qty), 0)          AS total_qty,
             COALESCE(SUM(i.m3), 0)           AS total_m3,
-            COALESCE(SUM(i.qty * i.weight_kg),0) AS total_weight,
-            oi.thumb_image_path              AS thumb_image_path
+            COALESCE(SUM(i.qty * i.weight_kg),0) AS total_weight
         FROM hainyu_headers h
         LEFT JOIN hainyu_items i
           ON i.hainyu_id = h.hainyu_id
-        LEFT JOIN (
-            SELECT
-                hainyu_id,
-                MIN(image_path) AS thumb_image_path
-            FROM ocr_images
-            GROUP BY hainyu_id
-        ) oi
-          ON oi.hainyu_id = h.hainyu_id
     """
 
     conditions = []
@@ -390,7 +434,7 @@ def api_summary():
             h.shipper,
             h.dest,
             h.item_name,
-            oi.thumb_image_path
+            h.mark_image
         ORDER BY
             h.date DESC,
             h.hainyu_id ASC
@@ -403,9 +447,6 @@ def api_summary():
 
     results = []
     for r in rows:
-        thumb_path = r["thumb_image_path"]
-        thumb_url = url_for("static", filename=thumb_path) if thumb_path else None
-
         results.append(
             {
                 "hainyuId": r["hainyu_id"],
@@ -417,95 +458,12 @@ def api_summary():
                 "totalQty": r["total_qty"],
                 "totalM3": float(r["total_m3"] or 0),
                 "totalWeight": float(r["total_weight"] or 0),
-                # ★ 追加: 一覧画面用のサムネURL
-                "thumbUrl": thumb_url,
+                "markImage": r["mark_image"],  # ★ 一覧用に画像パスも返す
             }
         )
 
     return jsonify({"results": results})
 
 
-# ===== API: OCRマーク画像 アップロード & 取得 =====
-
-@app.route("/api/hainyu/<hainyu_id>/mark_image", methods=["POST"])
-def upload_mark_image(hainyu_id):
-    """
-    スマホ側の OCR 用ファイル入力から呼ばれる。
-    元画像を static/ocr_images 以下に保存し、DB(ocr_images)に紐づける。
-    """
-    file = request.files.get("file")
-    if not file:
-        return jsonify({"error": "no file"}), 400
-
-    # 保存先フォルダ: static/ocr_images
-    save_dir = os.path.join(app.static_folder, "ocr_images")
-    os.makedirs(save_dir, exist_ok=True)
-
-    orig_name = file.filename or "mark.jpg"
-    _, ext = os.path.splitext(orig_name)
-    if not ext:
-        ext = ".jpg"
-
-    # ファイル名: {hainyu_id}_{timestamp}.ext
-    from datetime import datetime
-    ts = datetime.now().strftime("%Y%m%d%H%M%S")
-    filename = f"{hainyu_id}_{ts}{ext}"
-
-    filepath = os.path.join(save_dir, filename)
-    file.save(filepath)
-
-    # static からの相対パスをDBに保存
-    rel_path = f"ocr_images/{filename}"
-
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT INTO ocr_images (hainyu_id, image_path, created_at)
-        VALUES (?, ?, datetime('now','localtime'))
-        """,
-        (hainyu_id, rel_path),
-    )
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "ok": True,
-        "imageUrl": url_for("static", filename=rel_path)
-    })
-
-
-@app.route("/api/hainyu/<hainyu_id>/mark_images", methods=["GET"])
-def list_mark_images(hainyu_id):
-    """
-    搬入番号に紐づいたマーク画像一覧（PCの詳細画面などで使いたくなった時用）
-    """
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT id, image_path, created_at
-        FROM ocr_images
-        WHERE hainyu_id = ?
-        ORDER BY created_at DESC
-        """,
-        (hainyu_id,),
-    )
-    rows = cur.fetchall()
-    conn.close()
-
-    images = [
-        {
-            "id": r["id"],
-            "imageUrl": url_for("static", filename=r["image_path"]),
-            "createdAt": r["created_at"],
-        }
-        for r in rows
-    ]
-    return jsonify(images)
-
-
 if __name__ == "__main__":
-    # 開発サーバー起動
-    # 外部公開する場合は host='0.0.0.0' にする等
     app.run(debug=True, port=5000)

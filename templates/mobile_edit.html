@@ -8,12 +8,12 @@
   <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
 
   <style>
-    /* ===== 現場UX特化スタイル（ダークモード） ===== */
+    /* ===== 現場UX特化スタイル（スマホ専用ダークテーマ） ===== */
     :root {
       --bg-body: #0f172a;
       --bg-card: #1e293b;
       --bg-input: #334155;
-      --bg-focus: #172554;
+      --bg-focus: #172554; /* 入力中の背景 */
       --accent: #38bdf8;
       --text-main: #f1f5f9;
       --text-sub: #94a3b8;
@@ -24,16 +24,17 @@
       background-color: var(--bg-body);
       color: var(--text-main);
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      padding-bottom: 140px;
+      padding-bottom: 140px; /* フッター余白多めに */
       -webkit-font-smoothing: antialiased;
     }
-
+    
     .mobile-app {
       max-width: 600px;
       margin: 0 auto;
       padding: 0 12px;
     }
 
+    /* セクション */
     .section {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -42,7 +43,7 @@
       margin-bottom: 16px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     }
-
+    
     .section-header {
       display: flex;
       justify-content: space-between;
@@ -51,7 +52,6 @@
       padding-bottom: 8px;
       border-bottom: 2px solid var(--border);
     }
-
     .section-title {
       font-size: 13px;
       font-weight: 700;
@@ -60,6 +60,7 @@
       letter-spacing: 0.05em;
     }
 
+    /* 入力フィールド共通 */
     .input-label {
       font-size: 11px;
       color: var(--text-sub);
@@ -67,10 +68,9 @@
       display: block;
       font-weight: bold;
     }
-
     .mobile-input {
       width: 100%;
-      font-size: 18px;
+      font-size: 18px; /* 大きく */
       padding: 12px;
       border-radius: 10px;
       border: 1px solid var(--border);
@@ -79,27 +79,28 @@
       outline: none;
       transition: all 0.2s ease;
     }
-
+    /* フォーカス時の演出 */
     .mobile-input:focus {
       border-color: var(--accent);
       background: var(--bg-focus);
       box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
       transform: translateY(-1px);
     }
-
+    
+    /* 横並びレイアウト用 */
     .row { display: flex; gap: 10px; }
     .col { flex: 1; min-width: 0; }
 
+    /* 荷姿チップ（横スクロール） */
     .chip-scroll {
       display: flex;
       gap: 8px;
       overflow-x: auto;
       padding: 4px 0 8px;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch; /* iOS慣性スクロール */
+      scrollbar-width: none; /* Firefox */
     }
     .chip-scroll::-webkit-scrollbar { display: none; }
-
     .chip {
       flex: 0 0 auto;
       background: #334155;
@@ -118,6 +119,7 @@
       border-color: var(--accent);
     }
 
+    /* 特別な入力ボックス: 寸法エリア */
     .dims-box {
       background: #020617;
       border: 1px solid #334155;
@@ -142,9 +144,12 @@
       font-family: monospace;
     }
 
+    /* 固定フッター */
     .sticky-footer {
       position: fixed;
-      bottom: 0; left: 0; right: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
       background: rgba(15, 23, 42, 0.95);
       backdrop-filter: blur(12px);
       border-top: 1px solid #334155;
@@ -180,6 +185,7 @@
     .btn-sub { background: #334155; color: #cbd5e1; }
     .btn-save { background: #16a34a; color: white; font-size: 11px; gap: 2px; }
 
+    /* リストカード */
     .card-item {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -221,9 +227,12 @@
       border-radius: 6px;
     }
 
+    /* ステータス表示（トースト） */
     .status-bar {
       position: fixed;
-      top: 0; left: 0; right: 0;
+      top: 0;
+      left: 0;
+      right: 0;
       padding: 10px;
       text-align: center;
       font-size: 13px;
@@ -291,6 +300,27 @@
         </div>
         <textarea id="markInput" class="mobile-input" style="min-height:60px; font-family:monospace; font-size:14px;"></textarea>
       </div>
+
+      <!-- ★ 追加: マーク画像プレビュー（OCR元写真） -->
+      <div style="margin-top:8px;">
+        <span class="input-label">マーク画像（OCR元写真）</span>
+        <div id="markImageBox" style="
+              border: 1px solid #475569;
+              border-radius: 10px;
+              padding: 8px;
+              min-height: 60px;
+              display: flex;
+              align-items: center;
+              justify-content: flex-start;
+              background: #020617;
+              gap: 12px;
+        ">
+          <span id="markImageEmptyText" style="font-size:12px; color:#64748b;">
+            まだ画像が登録されていません。（カメラ読取するとここに表示されます）
+          </span>
+        </div>
+      </div>
+      <!-- ★ ここまで追加 -->
     </div>
 
     <div class="section" id="inputSection" style="border: 2px solid var(--border);">
@@ -332,7 +362,7 @@
 
       <div class="dims-box">
         <div class="dims-header">
-          <span class="input-label" style="margin:0;">寸法 (cm) &amp; 重量</span>
+          <span class="input-label" style="margin:0;">寸法 (cm) & 重量</span>
           <div style="display:flex; align-items:center; gap:6px;">
             <span style="font-size:10px; color:#94a3b8;">M3:</span>
             <div id="m3Display" class="m3-badge">0.000</div>
@@ -371,6 +401,7 @@
     </button>
   </div>
 
+  <!-- 画像トリミング用オーバーレイ -->
   <div id="cropOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center; padding:16px;">
     <div style="width:100%; max-width:500px; display:flex; flex-direction:column; gap:16px;">
       <div style="color:#fff; text-align:center;">範囲をドラッグして選択</div>
@@ -383,6 +414,7 @@
   </div>
 
   <script>
+    // ===== バイブレーション =====
     function triggerHaptic(type = 'selection') {
       if (navigator.vibrate) {
         if (type === 'success') navigator.vibrate(50);
@@ -391,6 +423,7 @@
       }
     }
 
+    // ===== 通知トースト =====
     function showToast(msg, type='ok') {
       const bar = document.getElementById("statusBar");
       bar.textContent = msg;
@@ -400,6 +433,7 @@
       }, 2500);
     }
 
+    // ===== アプリロジック =====
     let currentHainyuId = null;
     let isDirty = false;
     let items = [];
@@ -439,17 +473,128 @@
     }
 
     function calcM3(qty, L, W, H) {
-      const q = Number(qty)||0, l=Number(L)||0, w=Number(W)||0, h=Number(H)||0;
+      const q = Number(qty)||0; const l=Number(L)||0; const w=Number(W)||0; const h=Number(H)||0;
       return Math.round(q * l * w * h * 0.000001 * 1000) / 1000;
     }
 
+    // ==== フッター表示切替（編集中かどうか） ====
+    function updateFooterForEdit(isEditing) {
+      const addBtn = document.getElementById("stickyAddBtn");
+      const saveBtn = document.getElementById("stickySaveBtn");
+      if (isEditing) {
+        addBtn.textContent = "編集中の明細を上書き保存";
+        saveBtn.style.display = "none";
+      } else {
+        addBtn.textContent = "＋ 追加";
+        saveBtn.style.display = "flex";
+      }
+    }
+
+    // ==== 入力エリアの見た目を「編集中」っぽくする ====
+    function setEditingVisual(isEditing) {
+      const section = document.getElementById("inputSection");
+      const indicator = document.getElementById("rowIndicator");
+      if (isEditing) {
+        section.style.borderColor = "#f97316";            // オレンジ
+        section.style.boxShadow = "0 0 0 1px #f97316";
+        indicator.style.color = "#fed7aa";
+      } else {
+        section.style.borderColor = "#475569";            // 元の色
+        section.style.boxShadow = "none";
+        indicator.style.color = "#38bdf8";
+      }
+    }
+
+    // ====== 追加: マーク画像プレビュー更新 ======
+    function updateMarkImagePreview(markImagePath) {
+      const box = document.getElementById("markImageBox");
+      if (!box) return;
+
+      // 初期表示メッセージを作り直す
+      box.innerHTML = "";
+      if (!markImagePath) {
+        const span = document.createElement("span");
+        span.id = "markImageEmptyText";
+        span.textContent = "まだ画像が登録されていません。（カメラ読取するとここに表示されます）";
+        span.style.fontSize = "12px";
+        span.style.color = "#64748b";
+        box.appendChild(span);
+        return;
+      }
+
+      const url = `/static/${markImagePath}`;
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.title = "タップで元画像を別タブ表示";
+
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = "マーク画像";
+      img.style.maxWidth = "160px";
+      img.style.maxHeight = "120px";
+      img.style.objectFit = "contain";
+      img.style.border = "1px solid #4b5563";
+      img.style.borderRadius = "6px";
+      img.style.background = "#020617";
+      img.loading = "lazy";
+
+      a.appendChild(img);
+
+      const caption = document.createElement("div");
+      caption.textContent = "タップで拡大表示（別タブ）";
+      caption.style.fontSize = "11px";
+      caption.style.color = "#9ca3af";
+      caption.style.marginLeft = "8px";
+
+      box.appendChild(a);
+      box.appendChild(caption);
+    }
+
+    // ====== 追加: Canvas からサーバーに画像アップロード ======
+    async function uploadMarkImageFromCanvas(canvas) {
+      if (!currentHainyuId) {
+        showToast("先に搬入番号を読込してください", "warn");
+        return null;
+      }
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            reject(new Error("blob作成に失敗"));
+            return;
+          }
+          try {
+            const formData = new FormData();
+            formData.append("file", blob, `mark_${Date.now()}.png`);
+            const res = await fetch(`/api/hainyu/${encodeURIComponent(currentHainyuId)}/mark_image`, {
+              method: "POST",
+              body: formData
+            });
+            if (!res.ok) {
+              throw new Error("アップロード失敗");
+            }
+            const data = await res.json();
+            if (data.markImage) {
+              updateMarkImagePreview(data.markImage);
+            }
+            return resolve(data.markImage || null);
+          } catch (e) {
+            console.error(e);
+            showToast("画像保存に失敗しました", "warn");
+            reject(e);
+          }
+        }, "image/png", 0.9);
+      });
+    }
+
+    // API関連
     async function apiLoadRecord(id) {
       const res = await fetch(`/api/hainyu/${encodeURIComponent(id)}`);
       if (res.status === 404) return null;
       if (!res.ok) throw new Error("load failed");
       return await res.json();
     }
-
     async function apiSaveRecord(id, record) {
       const res = await fetch(`/api/hainyu/${encodeURIComponent(id)}`, {
         method: "POST",
@@ -459,6 +604,7 @@
       if (!res.ok) throw new Error("save failed");
     }
 
+    // チップ機能
     window.setPkg = function(val) {
       const el = document.getElementById("pkgInput");
       el.value = val;
@@ -466,6 +612,7 @@
       triggerHaptic('selection');
     }
 
+    // フォームクリア（新規モードに戻す）
     function clearRowForm() {
       currentIndex = null;
       document.getElementById("rowIndicator").textContent = "新規入力モード";
@@ -478,14 +625,20 @@
       document.getElementById("heiInput").value = "";
       document.getElementById("weightInput").value = "";
       document.getElementById("m3Display").textContent = "0.000";
+      setEditingVisual(false);
+      updateFooterForEdit(false);
     }
 
+    // 編集モードへ
     window.fillRowForm = function(index) {
       const it = items[index];
       if (!it) return;
       currentIndex = index;
-      document.getElementById("rowIndicator").textContent = `No.${index+1} を編集中`;
       
+      document.getElementById("rowIndicator").textContent = `No.${index+1} を編集中`;
+      setEditingVisual(true);
+      updateFooterForEdit(true);
+
       document.getElementById("pkgInput").value = it.packageType||"";
       document.getElementById("noFromInput").value = (it.noFrom ?? "");
       document.getElementById("noToInput").value = (it.noTo ?? "");
@@ -502,6 +655,7 @@
       triggerHaptic('selection');
     }
 
+    // フォーム収集
     function collectRowForm() {
       const pkg = document.getElementById("pkgInput").value.trim();
       const noFrom = document.getElementById("noFromInput").value;
@@ -527,6 +681,7 @@
       };
     }
 
+    // リスト描画 (カード)
     function renderRowsList() {
       const container = document.getElementById("rowsList");
       container.innerHTML = "";
@@ -590,9 +745,13 @@
       }
     }
 
+    // 初期化
     window.addEventListener("DOMContentLoaded", () => {
       document.getElementById("dateInput").value = todayString();
       updateHeaderStatus();
+      updateFooterForEdit(false);
+      setEditingVisual(false);
+      updateMarkImagePreview(null);
 
       document.querySelectorAll("input, textarea").forEach(el => {
         el.addEventListener("input", () => {
@@ -618,6 +777,7 @@
       document.getElementById("noFromInput").addEventListener("input", calcQ);
       document.getElementById("noToInput").addEventListener("input", calcQ);
 
+      // 読込ボタン
       document.getElementById("loadBtn").addEventListener("click", async () => {
         const id = document.getElementById("hainyuId").value.trim();
         if(!id) return showToast("番号を入力してください", "warn");
@@ -638,6 +798,8 @@
             destInput.value = h.dest || "";
             itemNameInput.value = h.itemName || "";
             markInput.value = h.mark || "";
+            // ★ 既存レコードのマーク画像を表示
+            updateMarkImagePreview(h.markImage || null);
             showToast("読込完了");
           } else {
             items = [];
@@ -646,6 +808,7 @@
             destInput.value = "";
             itemNameInput.value = "";
             markInput.value = "";
+            updateMarkImagePreview(null);
             showToast("新規として開始します");
           }
           currentHainyuId = id;
@@ -660,6 +823,7 @@
         }
       });
 
+      // 追加 / 上書きボタン
       document.getElementById("stickyAddBtn").addEventListener("click", () => {
         const row = collectRowForm();
         if(!row) return showToast("値を入力してください", "warn");
@@ -678,11 +842,13 @@
         window.scrollTo({ top: document.getElementById("inputSection").offsetTop - 60, behavior: 'smooth' });
       });
 
+      // クリアボタン
       document.getElementById("stickyClearBtn").addEventListener("click", () => {
         clearRowForm();
         triggerHaptic('selection');
       });
 
+      // 保存ボタン（ヘッダ＋items）
       document.getElementById("stickySaveBtn").addEventListener("click", async () => {
         const id = document.getElementById("hainyuId").value.trim();
         if(!id) return;
@@ -692,12 +858,12 @@
           dest: document.getElementById("destInput").value.trim(),
           itemName: document.getElementById("itemNameInput").value.trim(),
           mark: document.getElementById("markInput").value
+          // markImage はサーバ側の /mark_image エンドポイントで更新
         };
         showToast("保存中...");
         try {
           await apiSaveRecord(id, {header, items});
           isDirty = false;
-          currentHainyuId = id;
           updateHeaderStatus();
           showToast("保存しました！");
           triggerHaptic('success');
@@ -707,16 +873,18 @@
         }
       });
 
+      // 未保存で離脱しようとしたら警告
       window.addEventListener("beforeunload", (e) => {
         if (!isDirty) return;
         e.preventDefault();
         e.returnValue = "";
       });
 
+      // OCR初期化
       setupOcr();
     });
 
-    // ===== OCR (Canvas Crop + 元画像アップロード) =====
+    // ===== OCR (Canvas Crop) =====
     function setupOcr() {
       const fileIn = document.getElementById("markOcrFile");
       const canvas = document.getElementById("cropCanvas");
@@ -724,40 +892,8 @@
       let imgObj=null, startX, startY, curX, curY, isDrag=false, cropRect=null;
 
       document.getElementById("markOcrBtn").addEventListener("click", () => fileIn.click());
-
-      fileIn.addEventListener("change", async e => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const idInput = document.getElementById("hainyuId");
-        const inputId = idInput ? idInput.value.trim() : "";
-        const id = currentHainyuId || inputId;
-
-        if (!id) {
-          showToast("先に搬入番号を入力して読込してください", "warn");
-        } else {
-          try {
-            const formData = new FormData();
-            formData.append("file", file);
-
-            const res = await fetch(`/api/hainyu/${encodeURIComponent(id)}/mark_image`, {
-              method: "POST",
-              body: formData
-            });
-
-            if (!res.ok) {
-              console.error("upload failed", res.status);
-              showToast("画像の保存に失敗しました（OCRは続行します）", "warn");
-            } else {
-              const data = await res.json();
-              console.log("uploaded image:", data.image_url);
-            }
-          } catch (err) {
-            console.error(err);
-            showToast("画像の保存中にエラー（OCRは続行します）", "warn");
-          }
-        }
-
+      fileIn.addEventListener("change", e => {
+        if(!e.target.files[0]) return;
         const r = new FileReader();
         r.onload = ev => {
           imgObj = new Image();
@@ -765,28 +901,36 @@
             document.getElementById("cropOverlay").style.display = "flex";
             const maxW = window.innerWidth - 40; 
             const scale = maxW / imgObj.width;
-            canvas.width = maxW;
-            canvas.height = imgObj.height * scale;
+            canvas.width = maxW; canvas.height = imgObj.height * scale;
             ctx.drawImage(imgObj, 0, 0, canvas.width, canvas.height);
             cropRect=null;
           };
           imgObj.src = ev.target.result;
         };
-        r.readAsDataURL(file);
+        r.readAsDataURL(e.target.files[0]);
         fileIn.value="";
       });
 
+      // タッチ描画
       canvas.addEventListener("touchstart", e => {
-        e.preventDefault(); const r=canvas.getBoundingClientRect();
-        startX=e.touches[0].clientX-r.left; startY=e.touches[0].clientY-r.top; isDrag=true;
+        e.preventDefault();
+        const r=canvas.getBoundingClientRect();
+        startX=e.touches[0].clientX-r.left;
+        startY=e.touches[0].clientY-r.top;
+        isDrag=true;
       });
       canvas.addEventListener("touchmove", e => {
-        if(!isDrag) return; const r=canvas.getBoundingClientRect();
-        curX=e.touches[0].clientX-r.left; curY=e.touches[0].clientY-r.top;
+        if(!isDrag) return;
+        const r=canvas.getBoundingClientRect();
+        curX=e.touches[0].clientX-r.left;
+        curY=e.touches[0].clientY-r.top;
         ctx.drawImage(imgObj,0,0,canvas.width,canvas.height);
         const w=curX-startX, h=curY-startY;
-        ctx.strokeStyle="#38bdf8"; ctx.lineWidth=2; ctx.strokeRect(startX,startY,w,h);
-        ctx.fillStyle="rgba(56,189,248,0.3)"; ctx.fillRect(startX,startY,w,h);
+        ctx.strokeStyle="#38bdf8";
+        ctx.lineWidth=2;
+        ctx.strokeRect(startX,startY,w,h);
+        ctx.fillStyle="rgba(56,189,248,0.3)";
+        ctx.fillRect(startX,startY,w,h);
       });
       canvas.addEventListener("touchend", () => {
         isDrag=false;
@@ -797,6 +941,7 @@
       document.getElementById("cropCancelBtn").addEventListener("click", () => {
         document.getElementById("cropOverlay").style.display="none";
       });
+
       document.getElementById("cropOkBtn").addEventListener("click", async () => {
         if(!cropRect) return showToast("範囲選択してください", "warn");
         document.getElementById("cropOverlay").style.display="none";
@@ -804,19 +949,32 @@
         
         const scale = imgObj.width / canvas.width;
         const hc = document.createElement("canvas");
-        hc.width = Math.abs(cropRect.w*scale); hc.height = Math.abs(cropRect.h*scale);
+        hc.width = Math.abs(cropRect.w*scale);
+        hc.height = Math.abs(cropRect.h*scale);
         const hctx = hc.getContext("2d");
-        hctx.drawImage(imgObj, 
-          Math.min(cropRect.x, cropRect.x+cropRect.w)*scale, Math.min(cropRect.y, cropRect.y+cropRect.h)*scale, 
-          hc.width, hc.height, 0, 0, hc.width, hc.height
+        hctx.drawImage(
+          imgObj, 
+          Math.min(cropRect.x, cropRect.x+cropRect.w)*scale,
+          Math.min(cropRect.y, cropRect.y+cropRect.h)*scale, 
+          hc.width, hc.height,
+          0, 0, hc.width, hc.height
         );
         
         try {
-          const res = await Tesseract.recognize(hc, 'eng', { tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-./ " });
+          // ★ 先にOCR
+          const res = await Tesseract.recognize(hc, 'eng', {
+            tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-./ "
+          });
           const txt = res.data.text.replace(/[^A-Z0-9\-\.\/ \n]/g, "").trim();
           const el = document.getElementById("markInput");
           el.value = (el.value ? el.value+"\n" : "") + txt;
-          markDirty(); showToast("完了"); triggerHaptic('success');
+          markDirty();
+
+          // ★ 切り抜き画像をサーバーに保存してプレビュー更新
+          await uploadMarkImageFromCanvas(hc);
+
+          showToast("完了");
+          triggerHaptic('success');
         } catch(e) { 
           console.error(e);
           showToast("解析エラー", "warn"); 
