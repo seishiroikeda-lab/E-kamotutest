@@ -23,7 +23,8 @@
           </div>
           <div class="app-subtitle">
             搬入番号ごとに、明細の合計個数・合計 M3・合計重量を一覧で確認できます。<br/>
-            日付・荷主・仕向け地で絞り込んで、請求や確認作業に使えます。
+            日付・荷主・仕向け地で絞り込んで、請求や確認作業に使えます。<br/>
+            マーク画像を撮影している搬入は、サムネイルが表示されます。
           </div>
         </div>
       </div>
@@ -119,7 +120,7 @@
 
         <div class="search-result-panel">
           <div class="search-result-header no-print">
-            ※ 印刷時は、この下の一覧とサマリーのみが紙に出力されます。
+            ※ 印刷時は、この下の一覧とサマリーのみが紙に出力されます。マーク画像は印刷されません。
           </div>
 
           <table class="search-table">
@@ -134,12 +135,13 @@
                 <th>合計個数</th>
                 <th>合計 M3</th>
                 <th>合計重量</th>
+                <th>マーク画像</th>
                 <th class="no-print">操作</th>
               </tr>
             </thead>
             <tbody id="summaryBody">
               <tr>
-                <td colspan="10" class="td-center">
+                <td colspan="11" class="td-center">
                   条件を指定して「検索する」を押してください。
                 </td>
               </tr>
@@ -225,7 +227,7 @@
       if (!results.length) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="10" class="td-center">該当するデータがありませんでした。</td>
+            <td colspan="11" class="td-center">該当するデータがありませんでした。</td>
           </tr>
         `;
         return;
@@ -239,6 +241,17 @@
         const m3 = Number(r.totalM3 || 0);
         const w = Number(r.totalWeight || 0);
 
+        // マーク画像セル（API から markImageUrl が返ってくる前提）
+        let markCellHtml = "-";
+        if (r.markImageUrl) {
+          const safeUrl = r.markImageUrl; // 例: `/uploads/marks/xxx.png`
+          markCellHtml = `
+            <a href="${safeUrl}" target="_blank" title="マーク画像を開く">
+              <img src="${safeUrl}" class="mark-thumb" alt="マーク画像">
+            </a>
+          `;
+        }
+
         tr.innerHTML = `
           <td class="td-center">${r.hainyuId || ""}</td>
           <td class="td-center">${r.date || ""}</td>
@@ -249,6 +262,7 @@
           <td class="td-right">${r.totalQty ?? ""}</td>
           <td class="td-right">${m3.toFixed(3)}</td>
           <td class="td-right">${w.toFixed(1)}</td>
+          <td class="td-center">${markCellHtml}</td>
           <td class="td-center no-print">
             <button class="btn-secondary btn-small" data-action="edit">編集</button>
             <button class="btn-primary btn-small" data-action="report">搬入票</button>
