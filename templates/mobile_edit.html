@@ -24,7 +24,7 @@
       background-color: var(--bg-body);
       color: var(--text-main);
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      padding-bottom: 140px; /* フッター余白多めに */
+      padding-bottom: 140px;
       -webkit-font-smoothing: antialiased;
     }
     
@@ -34,7 +34,6 @@
       padding: 0 12px;
     }
 
-    /* セクション */
     .section {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -60,7 +59,6 @@
       letter-spacing: 0.05em;
     }
 
-    /* 入力フィールド共通 */
     .input-label {
       font-size: 11px;
       color: var(--text-sub);
@@ -70,7 +68,7 @@
     }
     .mobile-input {
       width: 100%;
-      font-size: 18px; /* 大きく */
+      font-size: 18px;
       padding: 12px;
       border-radius: 10px;
       border: 1px solid var(--border);
@@ -79,7 +77,6 @@
       outline: none;
       transition: all 0.2s ease;
     }
-    /* フォーカス時の演出 */
     .mobile-input:focus {
       border-color: var(--accent);
       background: var(--bg-focus);
@@ -87,18 +84,16 @@
       transform: translateY(-1px);
     }
     
-    /* 横並びレイアウト用 */
     .row { display: flex; gap: 10px; }
     .col { flex: 1; min-width: 0; }
 
-    /* 荷姿チップ（横スクロール） */
     .chip-scroll {
       display: flex;
       gap: 8px;
       overflow-x: auto;
       padding: 4px 0 8px;
-      -webkit-overflow-scrolling: touch; /* iOS慣性スクロール */
-      scrollbar-width: none; /* Firefox */
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
     .chip-scroll::-webkit-scrollbar { display: none; }
     .chip {
@@ -119,7 +114,6 @@
       border-color: var(--accent);
     }
 
-    /* 特別な入力ボックス: 寸法エリア */
     .dims-box {
       background: #020617;
       border: 1px solid #334155;
@@ -144,7 +138,6 @@
       font-family: monospace;
     }
 
-    /* 固定フッター */
     .sticky-footer {
       position: fixed;
       bottom: 0;
@@ -185,7 +178,6 @@
     .btn-sub { background: #334155; color: #cbd5e1; }
     .btn-save { background: #16a34a; color: white; font-size: 11px; gap: 2px; }
 
-    /* リストカード */
     .card-item {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -227,7 +219,6 @@
       border-radius: 6px;
     }
 
-    /* ステータス表示（トースト） */
     .status-bar {
       position: fixed;
       top: 0;
@@ -257,6 +248,8 @@
       padding-bottom: 4px;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
+      min-height: 80px;
+      align-items: center;
     }
     .mark-images-scroll::-webkit-scrollbar {
       display: none;
@@ -269,6 +262,11 @@
       border: 1px solid #475569;
       flex: 0 0 auto;
       background: #020617;
+    }
+    .mark-images-empty {
+      font-size: 12px;
+      color: #64748b;
+      padding: 8px 4px;
     }
   </style>
 </head>
@@ -327,10 +325,12 @@
         <textarea id="markInput" class="mobile-input" style="min-height:60px; font-family:monospace; font-size:14px;"></textarea>
       </div>
 
-      <!-- マーク写真一覧（サムネ） -->
-      <div id="markImagesSection" class="mark-images-section" style="display:none;">
+      <!-- マーク写真一覧（常に枠は表示） -->
+      <div id="markImagesSection" class="mark-images-section">
         <span class="input-label">マーク写真</span>
-        <div id="markImagesList" class="mark-images-scroll"></div>
+        <div id="markImagesList" class="mark-images-scroll">
+          <div class="mark-images-empty">まだ写真がありません</div>
+        </div>
       </div>
     </div>
 
@@ -424,7 +424,6 @@
   </div>
 
   <script>
-    // ===== バイブレーション =====
     function triggerHaptic(type = 'selection') {
       if (navigator.vibrate) {
         if (type === 'success') navigator.vibrate(50);
@@ -433,7 +432,6 @@
       }
     }
 
-    // ===== 通知トースト =====
     function showToast(msg, type='ok') {
       const bar = document.getElementById("statusBar");
       bar.textContent = msg;
@@ -443,12 +441,11 @@
       }, 2500);
     }
 
-    // ===== アプリロジック =====
     let currentHainyuId = null;
     let isDirty = false;
     let items = [];
     let currentIndex = null;
-    let markImages = [];  // ← マーク写真のURL一覧
+    let markImages = [];  // マーク写真URL
 
     function todayString() {
       const d = new Date();
@@ -488,7 +485,6 @@
       return Math.round(q * l * w * h * 0.000001 * 1000) / 1000;
     }
 
-    // ==== フッター表示切替（編集中かどうか） ====
     function updateFooterForEdit(isEditing) {
       const addBtn = document.getElementById("stickyAddBtn");
       const saveBtn = document.getElementById("stickySaveBtn");
@@ -501,7 +497,6 @@
       }
     }
 
-    // ==== 入力エリアの見た目を「編集中」っぽくする ====
     function setEditingVisual(isEditing) {
       const section = document.getElementById("inputSection");
       const indicator = document.getElementById("rowIndicator");
@@ -516,19 +511,20 @@
       }
     }
 
-    // ===== マーク写真の描画 =====
+    // マーク写真描画（常に枠あり）
     function renderMarkImages(list) {
-      const section = document.getElementById("markImagesSection");
       const wrap = document.getElementById("markImagesList");
-      if (!section || !wrap) return;
+      if (!wrap) return;
 
       wrap.innerHTML = "";
       if (!list || list.length === 0) {
-        section.style.display = "none";
+        const empty = document.createElement("div");
+        empty.className = "mark-images-empty";
+        empty.textContent = "まだ写真がありません";
+        wrap.appendChild(empty);
         return;
       }
 
-      section.style.display = "block";
       list.forEach((url, idx) => {
         const img = document.createElement("img");
         img.src = url;
@@ -538,7 +534,6 @@
       });
     }
 
-    // API関連
     async function apiLoadRecord(id) {
       const res = await fetch(`/api/hainyu/${encodeURIComponent(id)}`);
       if (res.status === 404) return null;
@@ -554,7 +549,6 @@
       if (!res.ok) throw new Error("save failed");
     }
 
-    // チップ機能
     window.setPkg = function(val) {
       const el = document.getElementById("pkgInput");
       el.value = val;
@@ -562,7 +556,6 @@
       triggerHaptic('selection');
     }
 
-    // フォームクリア（新規モードに戻す）
     function clearRowForm() {
       currentIndex = null;
       document.getElementById("rowIndicator").textContent = "新規入力モード";
@@ -579,7 +572,6 @@
       updateFooterForEdit(false);
     }
 
-    // 編集モードへ
     window.fillRowForm = function(index) {
       const it = items[index];
       if (!it) return;
@@ -605,7 +597,6 @@
       triggerHaptic('selection');
     }
 
-    // フォーム収集
     function collectRowForm() {
       const pkg = document.getElementById("pkgInput").value.trim();
       const noFrom = document.getElementById("noFromInput").value;
@@ -631,7 +622,6 @@
       };
     }
 
-    // リスト描画 (カード)
     function renderRowsList() {
       const container = document.getElementById("rowsList");
       container.innerHTML = "";
@@ -695,14 +685,13 @@
       }
     }
 
-    // 初期化
     window.addEventListener("DOMContentLoaded", () => {
       document.getElementById("dateInput").value = todayString();
       updateHeaderStatus();
       updateFooterForEdit(false);
       setEditingVisual(false);
+      renderMarkImages(markImages);  // 初期表示（「まだ写真がありません」）
 
-      // 入力イベント監視
       document.querySelectorAll("input, textarea").forEach(el => {
         el.addEventListener("input", () => {
           markDirty();
@@ -716,7 +705,6 @@
         });
       });
 
-      // No.自動個数
       const calcQ = () => {
         const f = parseInt(document.getElementById("noFromInput").value);
         const t = parseInt(document.getElementById("noToInput").value);
@@ -728,7 +716,6 @@
       document.getElementById("noFromInput").addEventListener("input", calcQ);
       document.getElementById("noToInput").addEventListener("input", calcQ);
 
-      // 読込ボタン
       document.getElementById("loadBtn").addEventListener("click", async () => {
         const id = document.getElementById("hainyuId").value.trim();
         if(!id) return showToast("番号を入力してください", "warn");
@@ -749,7 +736,7 @@
             destInput.value = h.dest || "";
             itemNameInput.value = h.itemName || "";
             markInput.value = h.mark || "";
-            markImages = r.images || [];
+            markImages = r.images || r.mark_images || [];
             renderMarkImages(markImages);
             showToast("読込完了");
           } else {
@@ -775,7 +762,6 @@
         }
       });
 
-      // 追加 / 上書きボタン
       document.getElementById("stickyAddBtn").addEventListener("click", () => {
         const row = collectRowForm();
         if(!row) return showToast("値を入力してください", "warn");
@@ -794,13 +780,11 @@
         window.scrollTo({ top: document.getElementById("inputSection").offsetTop - 60, behavior: 'smooth' });
       });
 
-      // クリアボタン
       document.getElementById("stickyClearBtn").addEventListener("click", () => {
         clearRowForm();
         triggerHaptic('selection');
       });
 
-      // 保存ボタン
       document.getElementById("stickySaveBtn").addEventListener("click", async () => {
         const id = document.getElementById("hainyuId").value.trim();
         if(!id) return;
@@ -831,11 +815,10 @@
         e.returnValue = "";
       });
 
-      // OCR初期化
       setupOcr();
     });
 
-    // ===== OCR (Canvas Crop + 撮影画像を即サーバ保存＆プレビュー) =====
+    // OCR + 撮った画像を即サーバ保存 & プレビュー
     function setupOcr() {
       const fileIn = document.getElementById("markOcrFile");
       const canvas = document.getElementById("cropCanvas");
@@ -848,7 +831,7 @@
         const file = e.target.files[0];
         if (!file) return;
 
-        // 1) 先にサーバーへアップロードして URL を取得 → 即プレビューに反映
+        // 先にサーバーへアップロードしてURL取得→即プレビュー
         const idInput = document.getElementById("hainyuId");
         const inputId = idInput ? idInput.value.trim() : "";
         const id = currentHainyuId || inputId;
@@ -872,7 +855,7 @@
               const data = await res.json();
               if (data.image_url) {
                 markImages.push(data.image_url);
-                renderMarkImages(markImages); // ← 撮った瞬間に表示
+                renderMarkImages(markImages); // 撮った瞬間に反映
               }
             }
           } catch (err) {
@@ -881,7 +864,6 @@
           }
         }
 
-        // 2) ローカルで OCR 用キャンバスに載せる処理
         const r = new FileReader();
         r.onload = ev => {
           imgObj = new Image();
@@ -900,7 +882,6 @@
         fileIn.value="";
       });
 
-      // タッチ描画
       canvas.addEventListener("touchstart", e => {
         e.preventDefault();
         const r=canvas.getBoundingClientRect();
