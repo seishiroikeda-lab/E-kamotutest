@@ -144,6 +144,27 @@
       font-family: monospace;
     }
 
+    /* マーク画像のサムネイル表示 */
+    .mark-images {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .mark-images::-webkit-scrollbar {
+      display: none;
+    }
+    .mark-images img {
+      height: 64px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      object-fit: cover;
+      background: #020617;
+    }
+
     /* 固定フッター */
     .sticky-footer {
       position: fixed;
@@ -299,28 +320,10 @@
           <input type="file" id="markOcrFile" accept="image/*" capture="environment" style="display:none;">
         </div>
         <textarea id="markInput" class="mobile-input" style="min-height:60px; font-family:monospace; font-size:14px;"></textarea>
-      </div>
 
-      <!-- ★ 追加: マーク画像プレビュー（OCR元写真） -->
-      <div style="margin-top:8px;">
-        <span class="input-label">マーク画像（OCR元写真）</span>
-        <div id="markImageBox" style="
-              border: 1px solid #475569;
-              border-radius: 10px;
-              padding: 8px;
-              min-height: 60px;
-              display: flex;
-              align-items: center;
-              justify-content: flex-start;
-              background: #020617;
-              gap: 12px;
-        ">
-          <span id="markImageEmptyText" style="font-size:12px; color:#64748b;">
-            まだ画像が登録されていません。（カメラ読取するとここに表示されます）
-          </span>
-        </div>
+        <!-- ここに撮ったマーク写真のサムネイルを出す -->
+        <div id="markImages" class="mark-images"></div>
       </div>
-      <!-- ★ ここまで追加 -->
     </div>
 
     <div class="section" id="inputSection" style="border: 2px solid var(--border);">
@@ -401,7 +404,6 @@
     </button>
   </div>
 
-  <!-- 画像トリミング用オーバーレイ -->
   <div id="cropOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center; padding:16px;">
     <div style="width:100%; max-width:500px; display:flex; flex-direction:column; gap:16px;">
       <div style="color:#fff; text-align:center;">範囲をドラッグして選択</div>
@@ -486,7 +488,7 @@
         saveBtn.style.display = "none";
       } else {
         addBtn.textContent = "＋ 追加";
-        saveBtn.style.display = "flex";
+        saveBtn.style.display = "flex"; // 元のflexレイアウトに戻す
       }
     }
 
@@ -505,87 +507,22 @@
       }
     }
 
-    // ====== 追加: マーク画像プレビュー更新 ======
-    function updateMarkImagePreview(markImagePath) {
-      const box = document.getElementById("markImageBox");
-      if (!box) return;
-
-      // 初期表示メッセージを作り直す
-      box.innerHTML = "";
-      if (!markImagePath) {
-        const span = document.createElement("span");
-        span.id = "markImageEmptyText";
-        span.textContent = "まだ画像が登録されていません。（カメラ読取するとここに表示されます）";
-        span.style.fontSize = "12px";
-        span.style.color = "#64748b";
-        box.appendChild(span);
-        return;
-      }
-
-      const url = `/static/${markImagePath}`;
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.target = "_blank";
-      a.title = "タップで元画像を別タブ表示";
-
+    // ===== マーク画像のプレビュー操作 =====
+    function appendMarkImage(url) {
+      const box = document.getElementById("markImages");
+      if (!box || !url) return;
       const img = document.createElement("img");
       img.src = url;
-      img.alt = "マーク画像";
-      img.style.maxWidth = "160px";
-      img.style.maxHeight = "120px";
-      img.style.objectFit = "contain";
-      img.style.border = "1px solid #4b5563";
-      img.style.borderRadius = "6px";
-      img.style.background = "#020617";
-      img.loading = "lazy";
-
-      a.appendChild(img);
-
-      const caption = document.createElement("div");
-      caption.textContent = "タップで拡大表示（別タブ）";
-      caption.style.fontSize = "11px";
-      caption.style.color = "#9ca3af";
-      caption.style.marginLeft = "8px";
-
-      box.appendChild(a);
-      box.appendChild(caption);
+      img.alt = "マーク写真";
+      box.appendChild(img);
     }
 
-    // ====== 追加: Canvas からサーバーに画像アップロード ======
-    async function uploadMarkImageFromCanvas(canvas) {
-      if (!currentHainyuId) {
-        showToast("先に搬入番号を読込してください", "warn");
-        return null;
-      }
-      return new Promise((resolve, reject) => {
-        canvas.toBlob(async (blob) => {
-          if (!blob) {
-            reject(new Error("blob作成に失敗"));
-            return;
-          }
-          try {
-            const formData = new FormData();
-            formData.append("file", blob, `mark_${Date.now()}.png`);
-            const res = await fetch(`/api/hainyu/${encodeURIComponent(currentHainyuId)}/mark_image`, {
-              method: "POST",
-              body: formData
-            });
-            if (!res.ok) {
-              throw new Error("アップロード失敗");
-            }
-            const data = await res.json();
-            if (data.markImage) {
-              updateMarkImagePreview(data.markImage);
-            }
-            return resolve(data.markImage || null);
-          } catch (e) {
-            console.error(e);
-            showToast("画像保存に失敗しました", "warn");
-            reject(e);
-          }
-        }, "image/png", 0.9);
-      });
+    function renderMarkImages(urls) {
+      const box = document.getElementById("markImages");
+      if (!box) return;
+      box.innerHTML = "";
+      if (!urls || !urls.length) return;
+      urls.forEach(u => appendMarkImage(u));
     }
 
     // API関連
@@ -751,7 +688,6 @@
       updateHeaderStatus();
       updateFooterForEdit(false);
       setEditingVisual(false);
-      updateMarkImagePreview(null);
 
       document.querySelectorAll("input, textarea").forEach(el => {
         el.addEventListener("input", () => {
@@ -777,7 +713,6 @@
       document.getElementById("noFromInput").addEventListener("input", calcQ);
       document.getElementById("noToInput").addEventListener("input", calcQ);
 
-      // 読込ボタン
       document.getElementById("loadBtn").addEventListener("click", async () => {
         const id = document.getElementById("hainyuId").value.trim();
         if(!id) return showToast("番号を入力してください", "warn");
@@ -798,8 +733,9 @@
             destInput.value = h.dest || "";
             itemNameInput.value = h.itemName || "";
             markInput.value = h.mark || "";
-            // ★ 既存レコードのマーク画像を表示
-            updateMarkImagePreview(h.markImage || null);
+            // ここで既存のマーク画像を表示（API側で images / markImages を返す前提）
+            const imgs = r.images || r.markImages || [];
+            renderMarkImages(imgs);
             showToast("読込完了");
           } else {
             items = [];
@@ -808,7 +744,7 @@
             destInput.value = "";
             itemNameInput.value = "";
             markInput.value = "";
-            updateMarkImagePreview(null);
+            renderMarkImages([]);
             showToast("新規として開始します");
           }
           currentHainyuId = id;
@@ -823,7 +759,6 @@
         }
       });
 
-      // 追加 / 上書きボタン
       document.getElementById("stickyAddBtn").addEventListener("click", () => {
         const row = collectRowForm();
         if(!row) return showToast("値を入力してください", "warn");
@@ -842,13 +777,11 @@
         window.scrollTo({ top: document.getElementById("inputSection").offsetTop - 60, behavior: 'smooth' });
       });
 
-      // クリアボタン
       document.getElementById("stickyClearBtn").addEventListener("click", () => {
         clearRowForm();
         triggerHaptic('selection');
       });
 
-      // 保存ボタン（ヘッダ＋items）
       document.getElementById("stickySaveBtn").addEventListener("click", async () => {
         const id = document.getElementById("hainyuId").value.trim();
         if(!id) return;
@@ -858,7 +791,6 @@
           dest: document.getElementById("destInput").value.trim(),
           itemName: document.getElementById("itemNameInput").value.trim(),
           mark: document.getElementById("markInput").value
-          // markImage はサーバ側の /mark_image エンドポイントで更新
         };
         showToast("保存中...");
         try {
@@ -873,7 +805,6 @@
         }
       });
 
-      // 未保存で離脱しようとしたら警告
       window.addEventListener("beforeunload", (e) => {
         if (!isDirty) return;
         e.preventDefault();
@@ -884,7 +815,7 @@
       setupOcr();
     });
 
-    // ===== OCR (Canvas Crop) =====
+    // ===== OCR (Canvas Crop + 撮影と同時に画像保存 & プレビュー) =====
     function setupOcr() {
       const fileIn = document.getElementById("markOcrFile");
       const canvas = document.getElementById("cropCanvas");
@@ -892,8 +823,45 @@
       let imgObj=null, startX, startY, curX, curY, isDrag=false, cropRect=null;
 
       document.getElementById("markOcrBtn").addEventListener("click", () => fileIn.click());
-      fileIn.addEventListener("change", e => {
-        if(!e.target.files[0]) return;
+
+      fileIn.addEventListener("change", async e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // 先にサーバーにアップロードして保存し、即サムネ表示
+        const idInput = document.getElementById("hainyuId");
+        const inputId = idInput ? idInput.value.trim() : "";
+        const id = currentHainyuId || inputId;
+
+        if (!id) {
+          showToast("先に搬入番号を入力して読込してください", "warn");
+        } else {
+          try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const res = await fetch(`/api/hainyu/${encodeURIComponent(id)}/mark_image`, {
+              method: "POST",
+              body: formData
+            });
+
+            if (!res.ok) {
+              console.error("upload failed", res.status);
+              showToast("画像の保存に失敗しました（OCRは続行します）", "warn");
+            } else {
+              const data = await res.json();
+              // ここで即サムネ追加
+              if (data.image_url) {
+                appendMarkImage(data.image_url);
+              }
+            }
+          } catch (err) {
+            console.error(err);
+            showToast("画像の保存中にエラー（OCRは続行します）", "warn");
+          }
+        }
+
+        // ここからは今まで通り、クライアント側でトリミングしてOCR
         const r = new FileReader();
         r.onload = ev => {
           imgObj = new Image();
@@ -901,17 +869,17 @@
             document.getElementById("cropOverlay").style.display = "flex";
             const maxW = window.innerWidth - 40; 
             const scale = maxW / imgObj.width;
-            canvas.width = maxW; canvas.height = imgObj.height * scale;
+            canvas.width = maxW; 
+            canvas.height = imgObj.height * scale;
             ctx.drawImage(imgObj, 0, 0, canvas.width, canvas.height);
             cropRect=null;
           };
           imgObj.src = ev.target.result;
         };
-        r.readAsDataURL(e.target.files[0]);
+        r.readAsDataURL(file);
         fileIn.value="";
       });
 
-      // タッチ描画
       canvas.addEventListener("touchstart", e => {
         e.preventDefault();
         const r=canvas.getBoundingClientRect();
@@ -941,7 +909,6 @@
       document.getElementById("cropCancelBtn").addEventListener("click", () => {
         document.getElementById("cropOverlay").style.display="none";
       });
-
       document.getElementById("cropOkBtn").addEventListener("click", async () => {
         if(!cropRect) return showToast("範囲選択してください", "warn");
         document.getElementById("cropOverlay").style.display="none";
@@ -961,7 +928,6 @@
         );
         
         try {
-          // ★ 先にOCR
           const res = await Tesseract.recognize(hc, 'eng', {
             tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-./ "
           });
@@ -969,10 +935,6 @@
           const el = document.getElementById("markInput");
           el.value = (el.value ? el.value+"\n" : "") + txt;
           markDirty();
-
-          // ★ 切り抜き画像をサーバーに保存してプレビュー更新
-          await uploadMarkImageFromCanvas(hc);
-
           showToast("完了");
           triggerHaptic('success');
         } catch(e) { 
